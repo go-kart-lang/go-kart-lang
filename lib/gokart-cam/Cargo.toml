@@ -1,6 +1,7 @@
 [package]
-name = "cam"
+name = "gokart-cam"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+gokart-gc = { path = "../gokart-gc" }

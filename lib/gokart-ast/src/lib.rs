@@ -1,7 +1,7 @@
-type Var = String;
-type Con = String;
+pub type Var = String;
+pub type Con = String;
 
-enum Exp {
+pub enum Exp {
     Variable(Var),
     Sys(String, Box<Exp>, Box<Exp>),
     EmptyTuple,
@@ -15,11 +15,9 @@ enum Exp {
     LocalRec(Pat, Box<Exp>, Box<Exp>),
 }
 
-enum Pat {
+pub enum Pat {
     Variable(Var),
     EmptyPattern,
     Pair(Box<Pat>, Box<Pat>),
     Layer(Var, Box<Pat>),
 }
-
-fn main() {}
