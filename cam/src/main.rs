@@ -62,6 +62,10 @@ impl Heap {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn collect(&mut self) -> Vacuum<'_> {
         Vacuum {
             heap: self,
@@ -89,7 +93,7 @@ impl<'a> Vacuum<'a> {
                     self.heap.data.get(&id).unwrap().trace(&self);
                 }
             } else {
-                break
+                break;
             }
         }
         self.heap.data.retain(|&id, _| marked.contains(&id));
@@ -152,10 +156,19 @@ struct VM {
     heap: Heap,
     ip: usize,
     is_stopped: bool,
+    gc_threshold: usize,
 }
 
 impl VM {
-    pub fn new(code: Vec<OpCode>, initial_env: fn(&mut Heap) -> HeapRef<Value>) -> VM {
+    pub fn default(code: Vec<OpCode>, initial_env: fn(&mut Heap) -> HeapRef<Value>) -> VM {
+        Self::new(code, initial_env, 10_000)
+    }
+
+    pub fn new(
+        code: Vec<OpCode>,
+        initial_env: fn(&mut Heap) -> HeapRef<Value>,
+        gc_threshold: usize,
+    ) -> VM {
         let mut heap = Heap::default();
         let env = initial_env(&mut heap);
         VM {
@@ -165,6 +178,7 @@ impl VM {
             heap: heap,
             ip: 0,
             is_stopped: false,
+            gc_threshold,
         }
     }
 
@@ -174,6 +188,21 @@ impl VM {
 
     pub fn cur_env(&self) -> Value {
         self.heap[self.env]
+    }
+
+    pub fn run(&mut self) -> () {
+        while !self.is_stopped() {
+            self.step();
+
+            if self.heap.len() > self.gc_threshold {
+                let vac = self.heap.collect();
+                vac.mark(self.env);
+                for e in &self.stack {
+                    vac.mark(*e);
+                }
+                vac.finish();
+            }
+        }
     }
 
     pub fn step(&mut self) -> () {
@@ -326,7 +355,7 @@ impl VM {
 }
 
 fn main() {
-    let mut vm = VM::new(
+    let mut vm = VM::default(
         vec![
             OpCode::Push,
             OpCode::QuoteInt(4),
