@@ -82,9 +82,14 @@ impl<'a> Vacuum<'a> {
 
     pub fn finish(self) {
         let mut marked = BTreeSet::new();
-        while let Some(id) = self.pending.borrow_mut().pop_first() {
-            if marked.insert(id) {
-                self.heap.data.get(&id).unwrap().trace(&self);
+        loop {
+            let tmp = self.pending.borrow_mut().pop_first();
+            if let Some(id) = tmp {
+                if marked.insert(id) {
+                    self.heap.data.get(&id).unwrap().trace(&self);
+                }
+            } else {
+                break
             }
         }
         self.heap.data.retain(|&id, _| marked.contains(&id));
