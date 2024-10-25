@@ -1,7 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-  "lib/gokart-ast",
-  "lib/gokart-cam",
-  "lib/gokart-gc"
+    "lib/gokart-parser",
+    "lib/gokart-ast",
+    "lib/gokart-vm",
+    "lib/gokart-gc",
+    "lib/gokart-cam",
 ]
