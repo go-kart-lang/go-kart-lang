@@ -1,8 +1,10 @@
 pub type Var = String;
-pub type Con = String;
+pub type Con = u32;
 
+#[derive(Debug)]
 pub enum Exp {
     Variable(Var),
+    ConstInt(i32),
     Sys(String, Box<Exp>, Box<Exp>),
     EmptyTuple,
     Pair(Box<Exp>, Box<Exp>),
@@ -15,6 +17,7 @@ pub enum Exp {
     LocalRec(Pat, Box<Exp>, Box<Exp>),
 }
 
+#[derive(Debug)]
 pub enum Pat {
     Variable(Var),
     EmptyPattern,

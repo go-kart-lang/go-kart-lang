@@ -1,4 +1,4 @@
-use gokart_vm::{OpCode, PrimOp, Value, VM};
+use gokart_vm::{OpCode, PrimOp2, Value, VM};
 
 fn main() {
     let mut vm = VM::default(
@@ -13,7 +13,7 @@ fn main() {
             OpCode::Acc(0),
             OpCode::Swap,
             OpCode::Acc(1),
-            OpCode::Prim(PrimOp::IntPlus),
+            OpCode::Prim(PrimOp2::IntPlus),
             OpCode::Return,
         ],
         |h| {

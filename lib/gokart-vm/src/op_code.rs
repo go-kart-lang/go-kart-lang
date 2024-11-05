@@ -1,19 +1,25 @@
 use crate::prim_op::PrimOp;
 
-pub enum OpCode {
+#[derive(Debug, PartialEq)]
+pub enum GOpCode<Lbl> {
     Acc(u32),
+    Rest(u32),
     QuoteInt(i32),
     Push,
     Swap,
     Prim(PrimOp),
-    Cur(u32),
+    Cur(Lbl),
     Return,
+    Clear,
+    Cons,
     App,
     Pack(u32),
     Skip,
     Stop,
-    Call(u32),
-    Gotofalse(u32),
-    Switch(u32, u32),
-    Goto(u32),
+    Call(Lbl),
+    Gotofalse(Lbl),
+    Switch(u32, Lbl),
+    Goto(Lbl),
 }
+
+pub type OpCode = GOpCode<u32>;

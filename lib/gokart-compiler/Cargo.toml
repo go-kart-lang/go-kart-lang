@@ -1,0 +1,9 @@
+[package]
+name = "gokart-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gokart-vm = { path = "../gokart-vm" }
+gokart-ast = { path = "../gokart-ast" }
+rpds = "1.1.0"

@@ -6,4 +6,5 @@ members = [
     "lib/gokart-vm",
     "lib/gokart-gc",
     "lib/gokart-cam",
+    "lib/gokart-compiler",
 ]
