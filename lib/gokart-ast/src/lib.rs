@@ -24,3 +24,9 @@ pub enum Pat {
     Pair(Box<Pat>, Box<Pat>),
     Layer(Var, Box<Pat>),
 }
+
+#[derive(Debug)]
+pub struct TypeDef<'a> {
+    type_name: &'a str,
+    constructors: Vec<(&'a str, Vec<&'a str>)>,
+}

@@ -1,0 +1,27 @@
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum Token<S> {
+    Identifier(S),
+    Operator(S),
+    IntLiteral(i64),
+    Data,
+    Pipe,
+    Comma,
+    Let,
+    Letrec,
+    In,
+    If,
+    Then,
+    Else,
+    Case,
+    Of,
+    Backslash,
+    Arrow,
+    As,
+    LBrace,
+    LBracket,
+    LParen,
+    RBrace,
+    RBracket,
+    RParen,
+
+}
