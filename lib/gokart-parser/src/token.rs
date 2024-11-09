@@ -11,6 +11,7 @@ pub enum Token<S> {
     StringLiteral(S),
     Data,
     Pipe,
+    Semicolon,
     Comma,
     Let,
     Letrec,

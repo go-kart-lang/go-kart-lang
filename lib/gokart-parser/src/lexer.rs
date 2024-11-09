@@ -136,6 +136,7 @@ impl<'input> Iterator for Lexer<'input> {
                 '[' => Some(Ok((start, Token::LBracket, start + 1))),
                 ']' => Some(Ok((start, Token::RBracket, start + 1))),
                 ',' => Some(Ok((start, Token::Comma, start + 1))),
+                ';' => Some(Ok((start, Token::Semicolon, start + 1))),
                 '"' => Some(self.string_literal(start)),
                 ch if ch.is_digit(10) || (ch == '-' && self.test_lookahead(|x| x.is_digit(10))) => {
                     Some(self.numeric_literal(start, ch == '-'))

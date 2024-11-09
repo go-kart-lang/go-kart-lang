@@ -22,6 +22,7 @@ extern {
         "data" => Token::Data,
         "|" => Token::Pipe,
         "," => Token::Comma,
+        ";" => Token::Semicolon,
         "let" => Token::Let,
         "letrec" => Token::Letrec,
         "in" => Token::In,
