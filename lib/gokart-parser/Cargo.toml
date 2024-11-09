@@ -7,5 +7,6 @@ edition = "2021"
 lalrpop = "0.22.0"
 
 [dependencies]
+ordered-float = "4.5.0"
 gokart-ast = { path = "../gokart-ast" }
 lalrpop-util = { version = "0.21.0", features = ["lexer", "unicode"] }

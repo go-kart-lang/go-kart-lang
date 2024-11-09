@@ -1,2 +1,90 @@
-use gokart_ast::{Exp, Pat};
+use gokart_ast::{Definitions, InfixType, Definition, TypeDef, Constructor, FuncDef, Ast, LetType, PatAst, Literal};
+use crate::token::{Token, BorrowedToken, LexicalError};
+use crate::Error;
+use ordered_float::NotNan;
+use lalrpop_util::ErrorRecovery;
 
+
+grammar<'input, 'err>(errors: &'err mut Vec<ErrorRecovery<usize, BorrowedToken<'input>, Error<'input>>>);
+
+extern {
+    type Location = usize;
+    type Error = LexicalError;
+
+    enum BorrowedToken<'input> {
+        "identifier" => Token::Identifier(<&'input str>),
+        "uidentifier" => Token::UIdentifier(<&'input str>),
+        "operator" => Token::Operator(<&'input str>),
+        "nat literal" => Token::NatLiteral(<u64>),
+        "int literal" => Token::IntLiteral(<i64>),
+        "double literal" => Token::DoubleLiteral(<NotNan<f64>>),
+        "string literal" => Token::StringLiteral(<&'input str>),
+        "data" => Token::Data,
+        "|" => Token::Pipe,
+        "," => Token::Comma,
+        "let" => Token::Let,
+        "letrec" => Token::Letrec,
+        "in" => Token::In,
+        "=" => Token::Equals,
+        "if" => Token::If,
+        "then" => Token::Then,
+        "else" => Token::Else,
+        "case" => Token::Case,
+        "of" => Token::Of,
+        "\\" => Token::Backslash,
+        "->" => Token::Arrow,
+        "as" => Token::As,
+        "{" => Token::LBrace,
+        "}" => Token::RBrace,
+        "[" => Token::LBracket,
+        "]" => Token::RBracket,
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "infixl" => Token::Infixl,
+        "infixr" => Token::Infixr
+    }
+}
+
+Pipe<T>: Vec<T> = {
+    <mut v:(<T> "|")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+
+pub Definitions: Definitions<'input> = {
+    <definitions: Definition+> => Definitions(definitions)
+}
+
+pub Definition: Definition<'input> = {
+    <t: TypeDef> => Definition::Type(t),
+    <i: Infix> => i
+}
+
+pub Infix: Definition<'input> = {
+    "infixl" <op: "operator"> <val: "nat literal"> => Definition::Infix(InfixType::Left, op, val),
+    "infixr" <op: "operator"> <val: "nat literal"> => Definition::Infix(InfixType::Right, op, val),
+}
+
+pub TypeDef: TypeDef<'input> = {
+    "data" <type_name: "uidentifier"> "=" <constructors: Pipe<Constructor>> => {
+        TypeDef { type_name, constructors }
+    }
+}
+
+pub Constructor: Constructor<'input> = {
+    <name: "uidentifier"> <params: "uidentifier"*> => {
+        Constructor { name, params }
+    }
+}
+
+pub Literal: Literal<'input> = {
+    "int literal" => Literal::Int(<>),
+    "nat literal" => Literal::Int(<> as i64),
+    "double literal" => Literal::Double(<>),
+    "string literal" => Literal::String(<>),
+};
