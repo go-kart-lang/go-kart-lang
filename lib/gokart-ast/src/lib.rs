@@ -67,10 +67,11 @@ pub struct FuncDef<'a> {
 
 #[derive(Debug)]
 pub enum Ast<'a> {
+    Var(&'a str),
     Literal(Literal<'a>),
     Operator(Ptr<Ast<'a>>, &'a str, Ptr<Ast<'a>>),
     App {
-        name: &'a str,
+        head: Ptr<Ast<'a>>,
         children: Vec<Ptr<Ast<'a>>>,
     },
     IfThenElse(Ptr<Ast<'a>>, Ptr<Ast<'a>>, Ptr<Ast<'a>>),

@@ -2,6 +2,7 @@ use gokart_ast::{Definitions, InfixType, Definition, TypeDef, Constructor, FuncD
 use crate::token::{Token, BorrowedToken, LexicalError};
 use crate::Error;
 use ordered_float::NotNan;
+use std::{cell::RefCell, rc::Rc};
 use lalrpop_util::ErrorRecovery;
 
 
@@ -63,6 +64,7 @@ pub Definitions: Definitions<'input> = {
 
 pub Definition: Definition<'input> = {
     <t: TypeDef> => Definition::Type(t),
+    <f: FuncDef> => Definition::Func(f),
     <i: Infix> => i
 }
 
@@ -81,6 +83,60 @@ pub Constructor: Constructor<'input> = {
     <name: "uidentifier"> <params: "uidentifier"*> => {
         Constructor { name, params }
     }
+}
+
+pub FuncDef: FuncDef<'input> = {
+    "let" <name: "identifier"> <params: "identifier"*> "=" <a: Ast> => {
+        FuncDef { name, params, body: a }
+    }
+}
+
+AtomicExpr: Rc<RefCell<Ast<'input>>> = {
+    <l: Literal> => Rc::new(RefCell::new(Ast::Literal(l))),
+    <name: "identifier"> => Rc::new(RefCell::new(Ast::Var(name))),
+    <name: "uidentifier"> => Rc::new(RefCell::new(Ast::Var(name))),
+    "(" <a: Ast> ")" => a
+}
+
+AppExpr: Rc<RefCell<Ast<'input>>> = {
+    AtomicExpr,
+    <expr: AtomicExpr> <exprs: AtomicExpr+> => Rc::new(RefCell::new(Ast::App { head: expr, children: exprs }))
+}
+
+InfixExpr: Rc<RefCell<Ast<'input>>> = {
+    AppExpr,
+    "\\" <names: "identifier"+> "->" <body: Ast> => Rc::new(RefCell::new(Ast::Lambda { args: names, body })),
+    <lhs: AppExpr> <op: "operator"> <rhs: InfixExpr> => Rc::new(RefCell::new(Ast::Operator(lhs, op, rhs)))
+}
+
+pub Ast: Rc<RefCell<Ast<'input>>> = {
+    InfixExpr,
+    "if" <pred: Ast> "then" <lhs: Ast> "else" <rhs: Ast> => Rc::new(RefCell::new(Ast::IfThenElse(pred, lhs, rhs))),
+    "case" <e: Ast> "of" <cases: Case*> => Rc::new(RefCell::new(Ast::Case(e, cases))),
+    "let" <defs: LetFuncDef+> "in" <body: Ast> => Rc::new(RefCell::new(Ast::Let(LetType::NonRec, defs, body))),
+    "letrec" <defs: LetFuncDef+> "in" <body: Ast> => Rc::new(RefCell::new(Ast::Let(LetType::Rec, defs, body))),
+}
+
+pub LetFuncDef: Rc<RefCell<FuncDef<'input>>> = {
+    <name: "identifier"> <params: "identifier"*> "=" <a: Ast> ";" => {
+        Rc::new(RefCell::new(FuncDef { name, params, body: a }))
+    }
+}
+
+pub Case: (Rc<RefCell<PatAst<'input>>>, Rc<RefCell<Ast<'input>>>) = {
+    "|" <pat: Pattern> "->" <a: Ast> ";" => (pat, a)
+}
+
+pub AtomicPattern: Rc<RefCell<PatAst<'input>>> = {
+    <id: "identifier"> "as" <pat: AtomicPattern> => Rc::new(RefCell::new(PatAst::As(id, pat))),
+    <id: "identifier"> => Rc::new(RefCell::new(PatAst::Var(id))),
+    <l: Literal> => Rc::new(RefCell::new(PatAst::Literal(l))),
+    "(" <p: Pattern> ")" => p
+}
+
+pub Pattern: Rc<RefCell<PatAst<'input>>> = {
+    AtomicPattern,
+    <id: "uidentifier"> <patterns: AtomicPattern*> => Rc::new(RefCell::new(PatAst::Constructor(id, patterns))),
 }
 
 pub Literal: Literal<'input> = {
