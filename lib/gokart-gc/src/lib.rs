@@ -1,4 +1,5 @@
 mod mark_gc;
+mod marker;
 mod retain_marked;
 mod trace;
 mod vacuum;

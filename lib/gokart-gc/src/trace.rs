@@ -1,10 +1,12 @@
 use gokart_core::GRef;
 
-use crate::vacuum::Vacuum;
+use crate::marker::Marker;
 
 pub trait Trace<R>
 where
     R: GRef,
 {
-    fn trace(&self, vac: &mut Vacuum<R>);
+    fn trace<C>(&self, vac: C)
+    where
+        C: Marker<R>;
 }
