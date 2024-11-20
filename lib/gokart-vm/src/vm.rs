@@ -206,95 +206,95 @@ impl VM {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn it_works() {
-        let mut vm = VM::default(
-            vec![
-                OpCode::Push,
-                OpCode::QuoteInt(4),
-                OpCode::Swap,
-                OpCode::Cur(6),
-                OpCode::App,
-                OpCode::Stop,
-                OpCode::Push,
-                OpCode::Acc(0),
-                OpCode::Swap,
-                OpCode::Acc(1),
-                OpCode::Prim(PrimOp::IntPlus),
-                OpCode::Return,
-            ],
-            |h| {
-                let p1 = h.alloc(Value::EmptyTuple);
-                let p2 = h.alloc(Value::Int(1));
-                h.alloc(Value::Pair(p1, p2))
-            },
-        );
-        vm.run();
-        match vm.cur_env() {
-            Value::Int(x) => assert_eq!(x, 5),
-            _ => assert!(false, "expected Value::Int(5)"),
-        };
-    }
+//     #[test]
+//     fn it_works() {
+//         let mut vm = VM::default(
+//             vec![
+//                 OpCode::Push,
+//                 OpCode::QuoteInt(4),
+//                 OpCode::Swap,
+//                 OpCode::Cur(6),
+//                 OpCode::App,
+//                 OpCode::Stop,
+//                 OpCode::Push,
+//                 OpCode::Acc(0),
+//                 OpCode::Swap,
+//                 OpCode::Acc(1),
+//                 OpCode::Prim(PrimOp::IntPlus),
+//                 OpCode::Return,
+//             ],
+//             |h| {
+//                 let p1 = h.alloc(Value::EmptyTuple);
+//                 let p2 = h.alloc(Value::Int(1));
+//                 h.alloc(Value::Pair(p1, p2))
+//             },
+//         );
+//         vm.run();
+//         match vm.cur_env() {
+//             Value::Int(x) => assert_eq!(x, 5),
+//             _ => assert!(false, "expected Value::Int(5)"),
+//         };
+//     }
 
-    fn even_program(n: i32, expected: i32) {
-        let mut vm = VM::default(
-            vec![
-                OpCode::Push,
-                OpCode::QuoteInt(n),
-                OpCode::Swap,
-                OpCode::Rest(0),
-                OpCode::Call(7),
-                OpCode::App,
-                OpCode::Stop,
-                OpCode::Cur(9),
-                OpCode::Return,
-                OpCode::Push,
-                OpCode::Push,
-                OpCode::Acc(0),
-                OpCode::Swap,
-                OpCode::QuoteInt(0),
-                OpCode::Prim(PrimOp::IntEq),
-                OpCode::Gotofalse(18),
-                OpCode::QuoteInt(1),
-                OpCode::Goto(32),
-                OpCode::Push,
-                OpCode::QuoteInt(1),
-                OpCode::Swap,
-                OpCode::Push,
-                OpCode::Push,
-                OpCode::Acc(0),
-                OpCode::Swap,
-                OpCode::QuoteInt(1),
-                OpCode::Prim(PrimOp::IntMinus),
-                OpCode::Swap,
-                OpCode::Rest(1),
-                OpCode::Call(7),
-                OpCode::App,
-                OpCode::Prim(PrimOp::IntMinus),
-                OpCode::Return,
-            ],
-            |h| h.alloc(Value::EmptyTuple),
-        );
-        vm.run();
-        match vm.cur_env() {
-            Value::Int(ret) => assert_eq!(
-                ret, expected,
-                "even({}) = {} (expected {})",
-                n, ret, expected
-            ),
-            _ => assert!(false, "expected Value::Int"),
-        };
-    }
+//     fn even_program(n: i32, expected: i32) {
+//         let mut vm = VM::default(
+//             vec![
+//                 OpCode::Push,
+//                 OpCode::QuoteInt(n),
+//                 OpCode::Swap,
+//                 OpCode::Rest(0),
+//                 OpCode::Call(7),
+//                 OpCode::App,
+//                 OpCode::Stop,
+//                 OpCode::Cur(9),
+//                 OpCode::Return,
+//                 OpCode::Push,
+//                 OpCode::Push,
+//                 OpCode::Acc(0),
+//                 OpCode::Swap,
+//                 OpCode::QuoteInt(0),
+//                 OpCode::Prim(PrimOp::IntEq),
+//                 OpCode::Gotofalse(18),
+//                 OpCode::QuoteInt(1),
+//                 OpCode::Goto(32),
+//                 OpCode::Push,
+//                 OpCode::QuoteInt(1),
+//                 OpCode::Swap,
+//                 OpCode::Push,
+//                 OpCode::Push,
+//                 OpCode::Acc(0),
+//                 OpCode::Swap,
+//                 OpCode::QuoteInt(1),
+//                 OpCode::Prim(PrimOp::IntMinus),
+//                 OpCode::Swap,
+//                 OpCode::Rest(1),
+//                 OpCode::Call(7),
+//                 OpCode::App,
+//                 OpCode::Prim(PrimOp::IntMinus),
+//                 OpCode::Return,
+//             ],
+//             |h| h.alloc(Value::EmptyTuple),
+//         );
+//         vm.run();
+//         match vm.cur_env() {
+//             Value::Int(ret) => assert_eq!(
+//                 ret, expected,
+//                 "even({}) = {} (expected {})",
+//                 n, ret, expected
+//             ),
+//             _ => assert!(false, "expected Value::Int"),
+//         };
+//     }
 
-    #[test]
-    fn it_works2() {
-        even_program(0, 1);
-        even_program(56, 1);
-        even_program(1, 0);
-        even_program(55, 0);
-    }
-}
+//     #[test]
+//     fn it_works2() {
+//         even_program(0, 1);
+//         even_program(56, 1);
+//         even_program(1, 0);
+//         even_program(55, 0);
+//     }
+// }

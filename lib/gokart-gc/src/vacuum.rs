@@ -1,37 +1,29 @@
-use super::Heap;
-use crate::heap::HeapRef;
-use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::VecDeque;
 
-pub struct Vacuum<'a> {
-    heap: &'a mut Heap,
-    pending: RefCell<BTreeSet<usize>>,
+use gokart_core::GRef;
+
+pub struct Vacuum<R>
+where
+    R: GRef,
+{
+    pending: VecDeque<R>,
 }
 
-impl<'a> Vacuum<'a> {
-    pub(super) fn new(heap: &'a mut Heap) -> Self {
-        Vacuum {
-            heap,
-            pending: RefCell::new(BTreeSet::new()),
+impl<R> Vacuum<R>
+where
+    R: GRef,
+{
+    pub fn new() -> Self {
+        Self {
+            pending: VecDeque::new(),
         }
     }
 
-    pub fn mark<T>(&self, id: HeapRef<T>) {
-        self.pending.borrow_mut().insert(id.id);
+    pub fn mark(&mut self, r: R) {
+        self.pending.push_back(r);
     }
 
-    pub fn finish(self) {
-        let mut marked = BTreeSet::new();
-        loop {
-            let tmp = self.pending.borrow_mut().pop_first();
-            if let Some(id) = tmp {
-                if marked.insert(id) {
-                    self.heap.trace_item(id, &self);
-                }
-            } else {
-                break;
-            }
-        }
-        self.heap.retain_marked(&marked);
+    pub fn next(&mut self) -> Option<R> {
+        self.pending.pop_front()
     }
 }
