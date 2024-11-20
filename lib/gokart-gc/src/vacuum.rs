@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 
 use gokart_core::GRef;
 
+use crate::marker::Marker;
+
 pub struct Vacuum<R>
 where
     R: GRef,
@@ -19,11 +21,16 @@ where
         }
     }
 
-    pub fn mark(&mut self, r: R) {
-        self.pending.push_back(r);
-    }
-
     pub fn next(&mut self) -> Option<R> {
         self.pending.pop_front()
+    }
+}
+
+impl<R> Marker<R> for &mut Vacuum<R>
+where
+    R: GRef,
+{
+    fn mark(self, r: R) {
+        self.pending.push_back(r);
     }
 }

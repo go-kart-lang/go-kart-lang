@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use gokart_core::{GHeap, GLabel, GRef, GValue, VMState, GGC};
 
-use crate::{vacuum::Vacuum, RetainMarked, Trace};
+use crate::{marker::Marker, vacuum::Vacuum, RetainMarked, Trace};
 
 pub struct MarkGC {
     threshold: usize,
