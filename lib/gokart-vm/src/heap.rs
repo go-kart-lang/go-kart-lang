@@ -3,19 +3,13 @@ use super::vacuum::Vacuum;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct HeapRef<T> {
-    pub(super) id: usize,
-    ty: PhantomData<T>,
-}
-
 #[derive(Default)]
-pub struct Heap {
-    data: HashMap<usize, Box<dyn Trace>>,
-    next_id: usize,
+pub struct Heap<V, R = usize> {
+    data: HashMap<R, V>,
+    next_id: R,
 }
 
-impl Heap {
+impl<V> Heap<V> {
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),

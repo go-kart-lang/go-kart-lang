@@ -1,7 +1,8 @@
-pub mod heap;
-pub mod trace;
-pub mod vacuum;
+mod mark_gc;
+mod retain_marked;
+mod trace;
+mod vacuum;
 
-pub use self::heap::{Heap, HeapRef};
-pub use trace::{AnyUpcast, Trace};
-pub use vacuum::Vacuum;
+pub use mark_gc::MarkGC;
+pub use retain_marked::RetainMarked;
+pub use trace::Trace;
