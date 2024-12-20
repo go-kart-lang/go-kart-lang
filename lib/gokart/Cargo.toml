@@ -1,7 +1,8 @@
 [package]
-name = "gokart-gc"
+name = "gokart"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 gokart-core = { path = "../gokart-core" }
+gokart-vm = { path = "../gokart-vm" }
