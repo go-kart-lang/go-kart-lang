@@ -1,10 +1,10 @@
-pub mod heap;
-pub mod op_code;
-pub mod prim_op;
-pub mod value;
-pub mod vm;
+mod gc;
+mod heap;
+mod ops;
+mod state;
+mod vm;
 
-pub use self::op_code::{GOpCode, OpCode};
-pub use self::prim_op::PrimOp;
-pub use self::value::{Label, Value};
-pub use self::vm::VM;
+pub use gc::GC;
+pub use heap::Heap;
+pub use state::State;
+pub use vm::VM;

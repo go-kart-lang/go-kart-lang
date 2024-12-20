@@ -1,64 +1,48 @@
-use super::trace::Trace;
-use super::vacuum::Vacuum;
-use std::collections::HashMap;
-use std::marker::PhantomData;
+use std::{collections::HashMap, ops};
 
-#[derive(Default)]
-pub struct Heap<V, R = usize> {
-    data: HashMap<R, V>,
-    next_id: R,
+use gokart_core::{Ref, Value};
+
+#[derive(Default, Debug)]
+pub struct Heap {
+    data: HashMap<Ref, Value>,
+    next_ref: Ref,
 }
 
-impl<V> Heap<V> {
+impl Heap {
+    #[inline]
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),
-            next_id: 0,
+            next_ref: Ref::default(),
         }
     }
 
-    pub fn alloc<T: Trace>(&mut self, val: T) -> HeapRef<T> {
-        let id = self.next_id;
-        self.next_id += 1;
-        self.data.insert(id, Box::new(val));
-        HeapRef {
-            id,
-            ty: PhantomData,
-        }
+    pub fn alloc(&mut self, val: Value) -> Ref {
+        let cur_ref = self.next_ref;
+        self.next_ref += 1;
+        self.data.insert(cur_ref, val);
+        cur_ref
     }
 
+    #[inline]
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: Fn(Ref) -> bool,
+    {
+        self.data.retain(|&k, _| f(k));
+    }
+
+    #[inline]
     pub fn len(&self) -> usize {
         self.data.len()
     }
-
-    pub fn collect(&mut self) -> Vacuum<'_> {
-        Vacuum::new(self)
-    }
-
-    pub(super) fn trace_item(&self, id: usize, vacuum: &Vacuum) {
-        if let Some(item) = self.data.get(&id) {
-            item.trace(vacuum);
-        }
-    }
-
-    pub(super) fn retain_marked(&mut self, marked: &std::collections::BTreeSet<usize>) {
-        self.data.retain(|&id, _| marked.contains(&id));
-    }
 }
 
-impl<T: 'static> std::ops::Index<HeapRef<T>> for Heap {
-    type Output = T;
+impl ops::Index<Ref> for Heap {
+    type Output = Value;
 
-    fn index(&self, id: HeapRef<T>) -> &T {
-        let any: &(dyn Trace) = &**self
-            .data
-            .get(&id.id)
-            .expect(&format!("Unknown id {}", id.id));
-
-        any.as_any().downcast_ref().expect(&format!(
-            "Expected type {}, found type {}",
-            std::any::type_name::<T>(),
-            any.type_name()
-        ))
+    #[inline]
+    fn index(&self, r: Ref) -> &Self::Output {
+        &self.data[&r]
     }
 }
