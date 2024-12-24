@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 gokart-core = { path = "../gokart-core" }
+gokart-parser = { path = "../gokart-parser" }
 gokart-vm = { path = "../gokart-vm" }
