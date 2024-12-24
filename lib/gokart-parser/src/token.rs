@@ -1,44 +1,33 @@
-use ordered_float::NotNan;
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum Token<S> {
-    Identifier(S),
-    UIdentifier(S),
-    Operator(S),
-    NatLiteral(u64),
-    IntLiteral(i64),
-    DoubleLiteral(NotNan<f64>),
-    StringLiteral(S),
-    Data,
-    Pipe,
-    Semicolon,
+#[derive(Debug, PartialEq)]
+pub enum Token<'a> {
+    LBrace,
+    RBrace,
+    LParen,
+    RParen,
+    LBracket,
+    RBracket,
     Comma,
+    Semicolon,
+    Str(&'a str),
+    Int(i64),
+    Double(f64), // todo
     Let,
     Letrec,
+    Data,
     In,
-    Equals,
     If,
     Then,
     Else,
     Case,
     Of,
-    Backslash,
-    Arrow,
-    As,
-    LBrace,
-    LBracket,
-    LParen,
-    RBrace,
-    RBracket,
-    RParen,
     Infixl,
     Infixr,
-}
-
-pub type BorrowedToken<'input> = Token<&'input str>;
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum LexicalError {
-    UnexpectedEndOfString,
-    BadLiteral,
+    As,
+    Udent(&'a str),
+    Ident(&'a str),
+    Eq,
+    Backslash,
+    Pipe,
+    Arrow,
+    Opr(&'a str),
 }
