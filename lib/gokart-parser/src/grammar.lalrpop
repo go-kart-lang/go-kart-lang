@@ -1,52 +1,3 @@
-use gokart_ast::{Definitions, InfixType, Definition, TypeDef, Constructor, FuncDef, Ast, LetType, PatAst, Literal};
-use crate::token::{Token, BorrowedToken, LexicalError};
-use crate::Error;
-use ordered_float::NotNan;
-use std::{cell::RefCell, rc::Rc};
-use lalrpop_util::ErrorRecovery;
-
-
-grammar<'input, 'err>(errors: &'err mut Vec<ErrorRecovery<usize, BorrowedToken<'input>, Error<'input>>>);
-
-extern {
-    type Location = usize;
-    type Error = LexicalError;
-
-    enum BorrowedToken<'input> {
-        "identifier" => Token::Identifier(<&'input str>),
-        "uidentifier" => Token::UIdentifier(<&'input str>),
-        "operator" => Token::Operator(<&'input str>),
-        "nat literal" => Token::NatLiteral(<u64>),
-        "int literal" => Token::IntLiteral(<i64>),
-        "double literal" => Token::DoubleLiteral(<NotNan<f64>>),
-        "string literal" => Token::StringLiteral(<&'input str>),
-        "data" => Token::Data,
-        "|" => Token::Pipe,
-        "," => Token::Comma,
-        ";" => Token::Semicolon,
-        "let" => Token::Let,
-        "letrec" => Token::Letrec,
-        "in" => Token::In,
-        "=" => Token::Equals,
-        "if" => Token::If,
-        "then" => Token::Then,
-        "else" => Token::Else,
-        "case" => Token::Case,
-        "of" => Token::Of,
-        "\\" => Token::Backslash,
-        "->" => Token::Arrow,
-        "as" => Token::As,
-        "{" => Token::LBrace,
-        "}" => Token::RBrace,
-        "[" => Token::LBracket,
-        "]" => Token::RBracket,
-        "(" => Token::LParen,
-        ")" => Token::RParen,
-        "infixl" => Token::Infixl,
-        "infixr" => Token::Infixr
-    }
-}
-
 Pipe<T>: Vec<T> = {
     <mut v:(<T> "|")*> <e:T?> => match e {
         None => v,
@@ -58,38 +9,13 @@ Pipe<T>: Vec<T> = {
 };
 
 
-pub Definitions: Definitions<'input> = {
-    <definitions: Definition+> => Definitions(definitions)
-}
-
-pub Definition: Definition<'input> = {
-    <t: TypeDef> => Definition::Type(t),
-    <f: FuncDef> => Definition::Func(f),
-    <i: Infix> => i
-}
-
-pub Infix: Definition<'input> = {
-    "infixl" <op: "operator"> <val: "nat literal"> => Definition::Infix(InfixType::Left, op, val),
-    "infixr" <op: "operator"> <val: "nat literal"> => Definition::Infix(InfixType::Right, op, val),
-}
-
 pub TypeDef: TypeDef<'input> = {
     "data" <type_name: "uidentifier"> "=" <constructors: Pipe<Constructor>> => {
         TypeDef { type_name, constructors }
     }
 }
 
-pub Constructor: Constructor<'input> = {
-    <name: "uidentifier"> <params: "uidentifier"*> => {
-        Constructor { name, params }
-    }
-}
 
-pub FuncDef: FuncDef<'input> = {
-    "let" <name: "identifier"> <params: "identifier"*> "=" <a: Ast> => {
-        FuncDef { name, params, body: a }
-    }
-}
 
 AtomicExpr: Rc<RefCell<Ast<'input>>> = {
     <l: Literal> => Rc::new(RefCell::new(Ast::Literal(l))),
@@ -105,14 +31,11 @@ AppExpr: Rc<RefCell<Ast<'input>>> = {
 
 InfixExpr: Rc<RefCell<Ast<'input>>> = {
     AppExpr,
-    "\\" <names: "identifier"+> "->" <body: Ast> => Rc::new(RefCell::new(Ast::Lambda { args: names, body })),
     <lhs: AppExpr> <op: "operator"> <rhs: InfixExpr> => Rc::new(RefCell::new(Ast::Operator(lhs, op, rhs)))
 }
 
 pub Ast: Rc<RefCell<Ast<'input>>> = {
     InfixExpr,
-    "if" <pred: Ast> "then" <lhs: Ast> "else" <rhs: Ast> => Rc::new(RefCell::new(Ast::IfThenElse(pred, lhs, rhs))),
-    "case" <e: Ast> "of" <cases: Case*> => Rc::new(RefCell::new(Ast::Case(e, cases))),
     "let" <defs: LetFuncDef+> "in" <body: Ast> => Rc::new(RefCell::new(Ast::Let(LetType::NonRec, defs, body))),
     "letrec" <defs: LetFuncDef+> "in" <body: Ast> => Rc::new(RefCell::new(Ast::Let(LetType::Rec, defs, body))),
 }
@@ -122,26 +45,3 @@ pub LetFuncDef: Rc<RefCell<FuncDef<'input>>> = {
         Rc::new(RefCell::new(FuncDef { name, params, body: a }))
     }
 }
-
-pub Case: (Rc<RefCell<PatAst<'input>>>, Rc<RefCell<Ast<'input>>>) = {
-    "|" <pat: Pattern> "->" <a: Ast> ";" => (pat, a)
-}
-
-pub AtomicPattern: Rc<RefCell<PatAst<'input>>> = {
-    <id: "identifier"> "as" <pat: AtomicPattern> => Rc::new(RefCell::new(PatAst::As(id, pat))),
-    <id: "identifier"> => Rc::new(RefCell::new(PatAst::Var(id))),
-    <l: Literal> => Rc::new(RefCell::new(PatAst::Literal(l))),
-    "(" <p: Pattern> ")" => p
-}
-
-pub Pattern: Rc<RefCell<PatAst<'input>>> = {
-    AtomicPattern,
-    <id: "uidentifier"> <patterns: AtomicPattern*> => Rc::new(RefCell::new(PatAst::Constructor(id, patterns))),
-}
-
-pub Literal: Literal<'input> = {
-    "int literal" => Literal::Int(<>),
-    "nat literal" => Literal::Int(<> as i64),
-    "double literal" => Literal::Double(<>),
-    "string literal" => Literal::String(<>),
-};
