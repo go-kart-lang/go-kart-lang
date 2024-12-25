@@ -1,93 +1,74 @@
-use crate::{Pos, Token};
-use std::{iter::Peekable, str::Chars};
-use thiserror::Error;
+use crate::{
+    error::{LexErr, LexResult},
+    loc::{Loc, Pos},
+    token::Token,
+};
+use std::{iter::Peekable, str::CharIndices};
 
+#[derive(Clone)]
 pub struct Lex<'a> {
     input: &'a str,
-    chars: Peekable<Chars<'a>>,
-    pos: Pos,
+    chars: Peekable<CharIndices<'a>>,
 }
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum LexError {
-    #[error("Unclosed quote at {0}")]
-    UnclosedQuote(Pos),
-    #[error("Invalid integer literal at {0}")]
-    InvalidIntLit(Pos),
-    #[error("Unexpected symbol {0} at {1}")]
-    UnexpectedSymbol(char, Pos),
-}
-
-pub type LexResult<'a> = Result<Token<'a>, LexError>;
 
 impl<'a> Lex<'a> {
     #[inline]
     pub fn new(input: &'a str) -> Self {
         Self {
             input,
-            chars: input.chars().peekable(),
-            pos: Pos::default(),
+            chars: input.char_indices().peekable(),
         }
     }
 
-    fn _take_while<P>(&mut self, pred: P, begin: usize) -> &'a str
+    fn _take_while<P>(&mut self, pred: P, begin: usize) -> (&'a str, Loc)
     where
         P: Fn(char) -> bool,
     {
         let mut end = begin;
-        while let Some((pos, ch)) = self._peek() {
+        while let Some(&(pos, ch)) = self.chars.peek() {
             if pred(ch) {
-                self._next();
+                self.chars.next();
                 end = pos;
             } else {
                 break;
             }
         }
-        &self.input[begin..=end]
+        (&self.input[begin..=end], Loc::new(begin, end))
     }
 
-    fn _next(&mut self) -> Option<(Pos, char)> {
-        let pos = self.pos;
-        let res = self.chars.next();
-        if let Some(ch) = res {
-            self.pos.next(ch);
-        }
-        res.map(|ch| (pos, ch))
-    }
+    #[inline]
+    fn str_lit(&mut self, begin: usize) -> LexResult<'a> {
+        let (s, loc) = self._take_while(|c| c != '"', begin + 1);
 
-    fn _peek(&mut self) -> Option<(usize, char)> {
-        self.chars.peek().map(|&ch| (self.pos.idx, ch))
-    }
-
-    fn str_lit(&mut self, begin: Pos) -> LexResult<'a> {
-        let s = self._take_while(|c| c != '"', begin.idx + 1);
-
-        match self._next() {
-            None => Err(LexError::UnclosedQuote(begin)),
-            Some(_) => Ok(Token::Str(s)),
+        match self.chars.next() {
+            None => Err(LexErr::UnclosedQuote(Pos::new(begin))),
+            Some(_) => Ok((Token::Str(s), loc)),
         }
     }
 
-    fn minus(&mut self, begin: Pos) -> LexResult<'a> {
-        match self._peek() {
-            Some((_, ch)) if is_digit(ch) => self.num_lit(begin),
+    #[inline]
+    fn minus(&mut self, begin: usize) -> LexResult<'a> {
+        match self.chars.peek() {
+            Some(&(_, ch)) if is_digit(ch) => self.num_lit(begin),
             _ => self.opr(begin),
         }
     }
 
-    fn num_lit(&mut self, begin: Pos) -> LexResult<'a> {
-        let s = self._take_while(is_digit, begin.idx);
+    #[inline]
+    fn num_lit(&mut self, begin: usize) -> LexResult<'a> {
+        let (s, loc) = self._take_while(is_digit, begin);
 
         match s.parse() {
-            Ok(x) => Ok(Token::Int(x)),
-            Err(_) => Err(LexError::InvalidIntLit(begin)),
+            Ok(x) => Ok((Token::Int(x), loc)),
+            Err(_) => Err(LexErr::InvalidIntLit(Pos::new(begin))),
         }
     }
 
-    fn ident(&mut self, begin: Pos) -> LexResult<'a> {
-        let s = self._take_while(is_ident, begin.idx);
+    #[inline]
+    fn ident(&mut self, begin: usize) -> LexResult<'a> {
+        let (s, loc) = self._take_while(is_ident, begin);
 
-        Ok(match s {
+        let tok = match s {
             "let" => Token::Let,
             "letrec" => Token::Letrec,
             "data" => Token::Data,
@@ -102,19 +83,22 @@ impl<'a> Lex<'a> {
             "as" => Token::As,
             s if s.starts_with(char::is_uppercase) => Token::Udent(s),
             s => Token::Ident(s),
-        })
+        };
+        Ok((tok, loc))
     }
 
-    fn opr(&mut self, begin: Pos) -> LexResult<'a> {
-        let s = self._take_while(is_opr, begin.idx);
+    #[inline]
+    fn opr(&mut self, begin: usize) -> LexResult<'a> {
+        let (s, loc) = self._take_while(is_opr, begin);
 
-        Ok(match s {
-            "=" => Token::Eq,
+        let tok = match s {
+            "=" => Token::Assign,
             "\\" => Token::Backslash,
             "|" => Token::Pipe,
             "->" => Token::Arrow,
             s => Token::Opr(s),
-        })
+        };
+        Ok((tok, loc))
     }
 }
 
@@ -122,29 +106,30 @@ impl<'a> Iterator for Lex<'a> {
     type Item = LexResult<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((pos, ch)) = self._next() {
+        while let Some((pos, ch)) = self.chars.next() {
             return match ch {
-                '{' => Some(Ok(Token::LBrace)),
-                '}' => Some(Ok(Token::LBrace)),
-                '(' => Some(Ok(Token::LParen)),
-                ')' => Some(Ok(Token::RParen)),
-                '[' => Some(Ok(Token::LBracket)),
-                ']' => Some(Ok(Token::RBracket)),
-                ',' => Some(Ok(Token::Comma)),
-                ';' => Some(Ok(Token::Semicolon)),
+                '{' => Some(Ok((Token::LBrace, Loc::new(pos, pos)))),
+                '}' => Some(Ok((Token::RBrace, Loc::new(pos, pos)))),
+                '(' => Some(Ok((Token::LParen, Loc::new(pos, pos)))),
+                ')' => Some(Ok((Token::RParen, Loc::new(pos, pos)))),
+                '[' => Some(Ok((Token::LBracket, Loc::new(pos, pos)))),
+                ']' => Some(Ok((Token::RBracket, Loc::new(pos, pos)))),
+                ',' => Some(Ok((Token::Comma, Loc::new(pos, pos)))),
+                ';' => Some(Ok((Token::Semicolon, Loc::new(pos, pos)))),
                 '"' => Some(self.str_lit(pos)),
                 '-' => Some(self.minus(pos)),
                 _ if is_digit(ch) => Some(self.num_lit(pos)),
                 _ if is_ident_begin(ch) => Some(self.ident(pos)),
                 _ if is_opr(ch) => Some(self.opr(pos)),
                 _ if is_empty(ch) => continue,
-                _ => Some(Err(LexError::UnexpectedSymbol(ch, pos))),
+                _ => Some(Err(LexErr::UnexpectedSymbol(ch, Pos::new(pos)))),
             };
         }
         None
     }
 }
 
+#[inline]
 fn is_digit(ch: char) -> bool {
     match ch {
         '0'..='9' => true,
@@ -152,6 +137,7 @@ fn is_digit(ch: char) -> bool {
     }
 }
 
+#[inline]
 fn is_ident_begin(ch: char) -> bool {
     match ch {
         '_' | 'a'..='z' | 'A'..='Z' => true,
@@ -159,6 +145,7 @@ fn is_ident_begin(ch: char) -> bool {
     }
 }
 
+#[inline]
 fn is_ident(ch: char) -> bool {
     match ch {
         '0'..='9' => true,
@@ -166,6 +153,7 @@ fn is_ident(ch: char) -> bool {
     }
 }
 
+#[inline]
 fn is_opr(ch: char) -> bool {
     match ch {
         '!' | '#' | '$' | '%' | '&' | '*' | '+' | '-' | '.' | '/' | '<' | '=' | '>' | '?' | '@'
@@ -174,6 +162,7 @@ fn is_opr(ch: char) -> bool {
     }
 }
 
+#[inline]
 fn is_empty(ch: char) -> bool {
     ch.is_whitespace()
 }
@@ -181,14 +170,13 @@ fn is_empty(ch: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use LexError::*;
     use Token::*;
 
     macro_rules! assert_tokens {
         ( $input:expr, $expected:expr ) => {
             let lexer = Lex::new($input);
 
-            let tokens = lexer.collect::<Result<Vec<Token>, LexError>>();
+            let tokens = lexer.collect::<Result<Vec<(Token, Loc)>, LexErr>>();
             assert!(tokens.is_ok());
             assert_eq!($expected, tokens.unwrap());
         };
@@ -198,7 +186,7 @@ mod tests {
         ( $input:expr, $err:expr ) => {
             let lexer = Lex::new($input);
 
-            let tokens = lexer.collect::<Result<Vec<Token>, LexError>>();
+            let tokens = lexer.collect::<Result<Vec<(Token, Loc)>, LexErr>>();
             assert!(tokens.is_err());
             assert_eq!($err, tokens.unwrap_err());
         };
@@ -206,29 +194,38 @@ mod tests {
 
     #[test]
     fn it_parses_int_literal() {
-        assert_tokens!("123", vec![Int(123)]);
+        assert_tokens!("123", vec![(Int(123), Loc::new(0, 2))]);
     }
 
     #[test]
     fn it_parses_int_literals() {
-        assert_tokens!("123 89", vec![Int(123), Int(89)]);
+        assert_tokens!(
+            "123  89",
+            vec![(Int(123), Loc::new(0, 2)), (Int(89), Loc::new(5, 6))]
+        );
     }
 
     #[test]
     fn it_parses_negative_int_literal() {
-        assert_tokens!("-123", vec![Int(-123)]);
+        assert_tokens!("-123", vec![(Int(-123), Loc::new(0, 3))]);
     }
 
     #[test]
     fn it_parses_string_literal() {
-        assert_tokens!(r#""the string""#, vec![Str("the string")]);
+        assert_tokens!(
+            r#""the string""#,
+            vec![(Str("the string"), Loc::new(1, 10))]
+        );
     }
 
     #[test]
     fn it_parses_string_literals() {
         assert_tokens!(
             r#""the string" "and another  string""#,
-            vec![Str("the string"), Str("and another  string")]
+            vec![
+                (Str("the string"), Loc::new(1, 10)),
+                (Str("and another  string"), Loc::new(14, 32))
+            ]
         );
     }
 
@@ -237,14 +234,14 @@ mod tests {
         assert_tokens!(
             "let f Cons x in plus f p",
             vec![
-                Let,
-                Ident("f"),
-                Udent("Cons"),
-                Ident("x"),
-                In,
-                Ident("plus"),
-                Ident("f"),
-                Ident("p"),
+                (Let, Loc::new(0, 2)),
+                (Ident("f"), Loc::new(4, 4)),
+                (Udent("Cons"), Loc::new(6, 9)),
+                (Ident("x"), Loc::new(11, 11)),
+                (In, Loc::new(13, 14)),
+                (Ident("plus"), Loc::new(16, 19)),
+                (Ident("f"), Loc::new(21, 21)),
+                (Ident("p"), Loc::new(23, 23)),
             ]
         );
     }
@@ -253,7 +250,33 @@ mod tests {
     fn it_parses_operators() {
         assert_tokens!(
             " if 14 = x+3",
-            vec![If, Int(14), Eq, Ident("x"), Opr("+"), Int(3),]
+            vec![
+                (If, Loc::new(1, 2)),
+                (Int(14), Loc::new(4, 5)),
+                (Assign, Loc::new(7, 7)),
+                (Ident("x"), Loc::new(9, 9)),
+                (Opr("+"), Loc::new(10, 10)),
+                (Int(3), Loc::new(11, 11)),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_parses_braces() {
+        assert_tokens!(
+            "( { x} ][ (-42))",
+            vec![
+                (LParen, Loc::new(0, 0)),
+                (LBrace, Loc::new(2, 2)),
+                (Ident("x"), Loc::new(4, 4)),
+                (RBrace, Loc::new(5, 5)),
+                (RBracket, Loc::new(7, 7)),
+                (LBracket, Loc::new(8, 8)),
+                (LParen, Loc::new(10, 10)),
+                (Int(-42), Loc::new(11, 13)),
+                (RParen, Loc::new(14, 14)),
+                (RParen, Loc::new(15, 15)),
+            ]
         );
     }
 
@@ -261,7 +284,7 @@ mod tests {
     fn it_handles_unclosed_quote_error() {
         assert_lex_error!(
             r#"letrec x = "some string"#,
-            UnclosedQuote(Pos::new(1, 12, 11))
+            LexErr::UnclosedQuote(Pos::new(11))
         );
     }
 
@@ -269,12 +292,12 @@ mod tests {
     fn it_handles_invalid_int_error() {
         assert_lex_error!(
             "if x = 100000000000000000000",
-            InvalidIntLit(Pos::new(1, 8, 7))
+            LexErr::InvalidIntLit(Pos::new(7))
         );
     }
 
     #[test]
     fn it_handles_unexpected_symbol_error() {
-        assert_lex_error!("-> привет мир", UnexpectedSymbol('п', Pos::new(1, 4, 3)));
+        assert_lex_error!("-> привет мир", LexErr::UnexpectedSymbol('п', Pos::new(3)));
     }
 }

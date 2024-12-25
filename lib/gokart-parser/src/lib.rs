@@ -1,9 +1,17 @@
+mod error;
 mod lex;
-// mod parse;
-mod pos;
+mod loc;
+mod parse;
 mod token;
+mod ts;
 
-pub use lex::*;
-// pub use parse::*;
-pub use pos::*;
-pub use token::*;
+use error::ParseResult;
+use gokart_core::ast::Ast;
+use lex::Lex;
+use parse::Parse;
+
+pub fn parse<'a>(input: &'a str) -> ParseResult<Ast<'a>> {
+    let lex = Lex::new(input);
+
+    Ast::parse(&mut lex.peekable())
+}

@@ -1,112 +1,134 @@
-#[derive(Debug)]
+use derive_new::new;
+
+#[derive(Debug, new)]
 pub struct Ast<'a> {
     pub defs: Vec<Def<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub enum Def<'a> {
-    Type(Type<'a>),
-    Func(Func<'a>),
-    Infix(Infix<'a>),
+    TypeDef(TypeDef<'a>),
+    FuncDef(FuncDef<'a>),
+    InfixDef(InfixDef<'a>),
 }
 
-#[derive(Debug)]
-pub struct Type<'a> {
-    pub name: &'a str,
+#[derive(Debug, new)]
+pub struct TypeDef<'a> {
+    pub name: Udent<'a>,
     pub cons: Vec<Con<'a>>,
 }
 
-#[derive(Debug)]
-pub struct Func<'a> {
-    pub name: &'a str,
-    pub params: Vec<&'a str>,
-    pub body: Expr<'a>,
+#[derive(Debug, new)]
+pub struct FuncDef<'a> {
+    pub name: Ident<'a>,
+    pub params: Vec<Ident<'a>>,
+    pub body: ExprPtr<'a>,
 }
 
-#[derive(Debug)]
-pub struct Infix<'a> {
+#[derive(Debug, new)]
+pub struct InfixDef<'a> {
     pub kind: InfixKind,
-    pub name: &'a str,
-    pub what: u64, // todo
+    pub name: OprName<'a>,
+    pub priority: InfixPriority, // todo
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub enum InfixKind {
     Left,
     Right,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Con<'a> {
-    pub name: &'a str,
-    pub params: Vec<&'a str>,
+    pub name: Udent<'a>,
+    pub params: Vec<Udent<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Var<'a> {
     pub name: &'a str,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
+pub struct OprName<'a> {
+    pub val: &'a str,
+}
+
+#[derive(Debug, new)]
+pub struct InfixPriority {
+    pub val: u64,
+}
+
+#[derive(Debug, new)]
+pub struct Ident<'a> {
+    pub val: &'a str,
+}
+
+#[derive(Debug, new)]
+pub struct Udent<'a> {
+    pub val: &'a str,
+}
+
+#[derive(Debug, new)]
 pub enum Lit<'a> {
     Int(i64),
-    Double(f64),  // todo
-    Str(&'a str), // todo
+    Double(f64),
+    Str(&'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Opr<'a> {
-    pub name: &'a str,
-    pub left: Expr<'a>,
-    pub right: Expr<'a>,
+    pub name: OprName<'a>,
+    pub left: ExprPtr<'a>,
+    pub right: ExprPtr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct App<'a> {
-    pub head: Expr<'a>,
-    pub children: Vec<Expr<'a>>,
+    pub head: ExprPtr<'a>,
+    pub children: Vec<ExprPtr<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Cond<'a> {
-    pub cond: Expr<'a>,
-    pub left: Expr<'a>,
-    pub right: Expr<'a>,
+    pub cond: ExprPtr<'a>,
+    pub left: ExprPtr<'a>,
+    pub right: ExprPtr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Abs<'a> {
-    pub args: Vec<&'a str>,
-    pub body: Expr<'a>,
+    pub args: Vec<Ident<'a>>,
+    pub body: ExprPtr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Case<'a> {
-    pub cond: Expr<'a>,
+    pub cond: ExprPtr<'a>,
     pub branches: Vec<Branch<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Branch<'a> {
-    pub pat: Pat<'a>,
-    pub body: Expr<'a>,
+    pub pat: PatPtr<'a>,
+    pub body: ExprPtr<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub enum LetKind {
     NonRec,
     Rec,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Let<'a> {
     pub kind: LetKind,
-    pub funcs: Vec<Func<'a>>,
-    pub expr: Expr<'a>,
+    pub funcs: Vec<FuncDef<'a>>,
+    pub expr: ExprPtr<'a>,
 }
 
-#[derive(Debug)]
-pub enum ExprNode<'a> {
+#[derive(Debug, new)]
+pub enum Expr<'a> {
     Var(Var<'a>),
     Lit(Lit<'a>),
     Opr(Opr<'a>),
@@ -117,25 +139,35 @@ pub enum ExprNode<'a> {
     Let(Let<'a>),
 }
 
-#[derive(Debug)]
+// TODO: restore original structures
+// make helper structures in parse.rs
+
+#[derive(Debug, new)]
 pub struct As<'a> {
-    pub name: &'a str,
-    pub pat: Pat<'a>,
+    pub name: Ident<'a>,
+    pub pat: AtPatPtr<'a>,
 }
 
-#[derive(Debug)]
-pub struct PatCon<'a> {
-    pub name: &'a str,
-    pub pats: Vec<Pat<'a>>,
-}
-
-#[derive(Debug)]
-pub enum PatNode<'a> {
+#[derive(Debug, new)]
+pub enum AtPat<'a> {
+    As(As<'a>),
     Var(Var<'a>),
     Lit(Lit<'a>),
-    As(As<'a>),
-    Con(PatCon<'a>),
+    PatPtr(PatPtr<'a>),
 }
 
-pub type Expr<'a> = Box<ExprNode<'a>>;
-pub type Pat<'a> = Box<PatNode<'a>>;
+#[derive(Debug, new)]
+pub struct PatCon<'a> {
+    pub name: Udent<'a>,
+    pub pats: Vec<AtPatPtr<'a>>,
+}
+
+#[derive(Debug, new)]
+pub enum Pat<'a> {
+    AtPat(AtPat<'a>),
+    PatCon(PatCon<'a>),
+}
+
+pub type ExprPtr<'a> = Box<Expr<'a>>;
+pub type PatPtr<'a> = Box<Pat<'a>>;
+pub type AtPatPtr<'a> = Box<AtPat<'a>>;

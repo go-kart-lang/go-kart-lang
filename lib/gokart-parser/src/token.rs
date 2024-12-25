@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Token<'a> {
     LBrace,
     RBrace,
@@ -25,9 +25,48 @@ pub enum Token<'a> {
     As,
     Udent(&'a str),
     Ident(&'a str),
-    Eq,
+    Assign,
     Backslash,
     Pipe,
     Arrow,
     Opr(&'a str),
+}
+
+impl<'a> Token<'a> {
+    pub fn name(&self) -> &'static str {
+        use Token::*;
+
+        match self {
+            LBrace => "LBrace",
+            RBrace => "RBrace",
+            LParen => "LParen",
+            RParen => "RParen",
+            LBracket => "LBracket",
+            RBracket => "RBracket",
+            Comma => "Comma",
+            Semicolon => "Semicolon",
+            Str(_) => "St",
+            Int(_) => "In",
+            Double(_) => "Doubl",
+            Let => "Let",
+            Letrec => "Letrec",
+            Data => "Data",
+            In => "In",
+            If => "If",
+            Then => "Then",
+            Else => "Else",
+            Case => "Case",
+            Of => "Of",
+            Infixl => "Infixl",
+            Infixr => "Infixr",
+            As => "As",
+            Udent(_) => "Uden",
+            Ident(_) => "Iden",
+            Assign => "Assign",
+            Backslash => "Backslash",
+            Pipe => "Pipe",
+            Arrow => "Arrow",
+            Opr(_) => "Op",
+        }
+    }
 }
