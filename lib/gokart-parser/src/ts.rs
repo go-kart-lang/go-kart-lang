@@ -11,6 +11,7 @@ pub type TokenStream<'a> = Peekable<Lex<'a>>;
 pub trait TokenStremExt<'a> {
     fn nextf(&mut self) -> ParseResult<(Token<'a>, Loc)>;
     fn expect(&mut self, exp: Token<'a>) -> ParseResult<()>;
+    fn expect_eof(&mut self) -> ParseResult<()>;
 }
 
 impl<'a> TokenStremExt<'a> for TokenStream<'a> {
@@ -27,6 +28,16 @@ impl<'a> TokenStremExt<'a> for TokenStream<'a> {
         match tok {
             _ if tok == exp => Ok(()),
             _ => Err(ParseErr::UnexpectedToken(tok.name(), loc.begin)),
+        }
+    }
+
+    fn expect_eof(&mut self) -> ParseResult<()> {
+        match self.next() {
+            None => Ok(()),
+            Some(r) => {
+                let (tok, loc) = r?;
+                Err(ParseErr::UnexpectedToken(tok.name(), loc.begin))
+            }
         }
     }
 }

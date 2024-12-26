@@ -2,7 +2,7 @@ use derive_new::new;
 
 #[derive(Debug, new)]
 pub struct Ast<'a> {
-    pub defs: Vec<Def<'a>>,
+    pub defs: NeSeq<Def<'a>>,
 }
 
 #[derive(Debug, new)]
@@ -15,13 +15,13 @@ pub enum Def<'a> {
 #[derive(Debug, new)]
 pub struct TypeDef<'a> {
     pub name: Udent<'a>,
-    pub cons: Vec<Con<'a>>,
+    pub cons: Pipe<Con<'a>>,
 }
 
 #[derive(Debug, new)]
 pub struct FuncDef<'a> {
     pub name: Ident<'a>,
-    pub params: Vec<Ident<'a>>,
+    pub params: Seq<Ident<'a>>,
     pub body: ExprPtr<'a>,
 }
 
@@ -41,7 +41,7 @@ pub enum InfixKind {
 #[derive(Debug, new)]
 pub struct Con<'a> {
     pub name: Udent<'a>,
-    pub params: Vec<Udent<'a>>,
+    pub params: Seq<Udent<'a>>,
 }
 
 #[derive(Debug, new)]
@@ -78,15 +78,15 @@ pub enum Lit<'a> {
 
 #[derive(Debug, new)]
 pub struct Opr<'a> {
+    pub left: AppExpr<'a>,
     pub name: OprName<'a>,
-    pub left: ExprPtr<'a>,
-    pub right: ExprPtr<'a>,
+    pub right: InfixExprPtr<'a>,
 }
 
 #[derive(Debug, new)]
 pub struct App<'a> {
-    pub head: ExprPtr<'a>,
-    pub children: Vec<ExprPtr<'a>>,
+    pub head: AtExprPtr<'a>,
+    pub children: NeSeq<AtExprPtr<'a>>,
 }
 
 #[derive(Debug, new)]
@@ -98,14 +98,14 @@ pub struct Cond<'a> {
 
 #[derive(Debug, new)]
 pub struct Abs<'a> {
-    pub args: Vec<Ident<'a>>,
+    pub args: NeSeq<Ident<'a>>,
     pub body: ExprPtr<'a>,
 }
 
 #[derive(Debug, new)]
 pub struct Case<'a> {
     pub cond: ExprPtr<'a>,
-    pub branches: Vec<Branch<'a>>,
+    pub branches: NeSeq<Branch<'a>>,
 }
 
 #[derive(Debug, new)]
@@ -121,26 +121,51 @@ pub enum LetKind {
 }
 
 #[derive(Debug, new)]
+pub struct LetFuncDef<'a> {
+    pub name: Ident<'a>,
+    pub params: Seq<Ident<'a>>,
+    pub body: ExprPtr<'a>,
+}
+
+#[derive(Debug, new)]
 pub struct Let<'a> {
     pub kind: LetKind,
-    pub funcs: Vec<FuncDef<'a>>,
+    pub funcs: NeSeq<LetFuncDef<'a>>,
     pub expr: ExprPtr<'a>,
 }
 
 #[derive(Debug, new)]
-pub enum Expr<'a> {
-    Var(Var<'a>),
+pub enum AtExpr<'a> {
     Lit(Lit<'a>),
-    Opr(Opr<'a>),
+    Var(Var<'a>),
+    WrapExpr(WrapExpr<'a>),
+}
+
+#[derive(Debug, new)]
+pub struct WrapExpr<'a> {
+    pub expr: ExprPtr<'a>,
+}
+
+#[derive(Debug, new)]
+pub enum AppExpr<'a> {
     App(App<'a>),
-    Cond(Cond<'a>),
+    AtExpr(AtExpr<'a>),
+}
+
+#[derive(Debug, new)]
+pub enum InfixExpr<'a> {
+    AppExpr(AppExpr<'a>),
     Abs(Abs<'a>),
+    Opr(Opr<'a>),
+}
+
+#[derive(Debug, new)]
+pub enum Expr<'a> {
+    InfixExpr(InfixExpr<'a>),
+    Cond(Cond<'a>),
     Case(Case<'a>),
     Let(Let<'a>),
 }
-
-// TODO: restore original structures
-// make helper structures in parse.rs
 
 #[derive(Debug, new)]
 pub struct As<'a> {
@@ -151,15 +176,20 @@ pub struct As<'a> {
 #[derive(Debug, new)]
 pub enum AtPat<'a> {
     As(As<'a>),
-    Var(Var<'a>),
+    Ident(Ident<'a>),
     Lit(Lit<'a>),
-    PatPtr(PatPtr<'a>),
+    WrapPat(WrapPat<'a>),
 }
 
 #[derive(Debug, new)]
 pub struct PatCon<'a> {
     pub name: Udent<'a>,
-    pub pats: Vec<AtPatPtr<'a>>,
+    pub pats: Seq<AtPatPtr<'a>>, // TODO: maybe NeSeq?
+}
+
+#[derive(Debug, new)]
+pub struct WrapPat<'a> {
+    pub pat: PatPtr<'a>,
 }
 
 #[derive(Debug, new)]
@@ -168,6 +198,24 @@ pub enum Pat<'a> {
     PatCon(PatCon<'a>),
 }
 
+#[derive(Debug, new)]
+pub struct Seq<T> {
+    pub items: Vec<T>,
+}
+
+#[derive(Debug, new)]
+pub struct NeSeq<T> {
+    pub items: Vec<T>,
+}
+
+#[derive(Debug, new)]
+pub struct Pipe<T> {
+    pub items: Vec<T>,
+}
+
 pub type ExprPtr<'a> = Box<Expr<'a>>;
+pub type AtExprPtr<'a> = Box<AtExpr<'a>>;
+pub type InfixExprPtr<'a> = Box<InfixExpr<'a>>;
+
 pub type PatPtr<'a> = Box<Pat<'a>>;
 pub type AtPatPtr<'a> = Box<AtPat<'a>>;

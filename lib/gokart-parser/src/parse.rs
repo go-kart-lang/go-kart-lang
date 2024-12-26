@@ -24,6 +24,8 @@ macro_rules! parse_prim {
     };
 }
 
+// TODO: convert parse_prim! and parse! to one big macro
+
 parse_prim!(InfixKind :
     (Token::Infixl, _) => Ok(InfixKind::Left),
     (Token::Infixr, _) => Ok(InfixKind::Right),
@@ -64,37 +66,7 @@ parse_prim!(Lit<'a> :
     (Token::Str(val), _) => Ok(Lit::Str(val)),
 );
 
-impl<'a, T> Parse<'a> for Vec<T>
-where
-    T: Parse<'a>,
-{
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        let mut items = Vec::new();
-        let mut tsc = ts.clone();
-
-        while let Ok(item) = T::parse(ts) {
-            items.push(item);
-            tsc = ts.clone();
-        }
-        *ts = tsc;
-
-        Ok(items)
-    }
-}
-
-impl<'a, T> Parse<'a> for Box<T>
-where
-    T: Parse<'a>,
-{
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        let inner = T::parse(ts)?;
-
-        Ok(Box::new(inner))
-    }
-}
-
 macro_rules! parse {
-    // sum type
     ( $type:ident = $( $branch:ident )|+ ) => {
         impl<'a> Parse<'a> for $type<'a> {
             fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
@@ -113,8 +85,7 @@ macro_rules! parse {
         }
     };
 
-    // product type
-    ( $type:ident = $( : $before:ident : )* $( $field:ty $( : $tok:ident : )* )+ ) => {
+    ( $type:ident = $( { $before:ident } )* $( $field:ty $( { $tok:ident } )* )+ ) => {
         impl<'a> Parse<'a> for $type<'a> {
             fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
                 $(
@@ -134,10 +105,11 @@ macro_rules! parse {
     };
 }
 
+// TODO: include expect_eof in parse! macro (somehow)
 impl<'a> Parse<'a> for Ast<'a> {
     fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        let defs = Vec::parse(ts)?;
-        // TODO: check eof
+        let defs = NeSeq::<Def>::parse(ts)?;
+        ts.expect_eof()?;
 
         Ok(Ast::new(defs))
     }
@@ -145,64 +117,113 @@ impl<'a> Parse<'a> for Ast<'a> {
 
 parse!(Def = TypeDef | FuncDef | InfixDef);
 
-impl<'a> Parse<'a> for TypeDef<'a> {
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        // ts.expect(Token::Data)?;
-        // let name = Udent::parse(ts)?;
-        // ts.expect(Token::Assign)?;
-        todo!()
-    }
-}
+parse!(TypeDef = {Data} Udent {Assign} Pipe<Con>);
 
-parse!(FuncDef = :Let: Ident Vec::<Ident> :Assign: ExprPtr);
+parse!(FuncDef = {Let} Ident Seq::<Ident> {Assign} ExprPtr);
 
 parse!(InfixDef = InfixKind OprName InfixPriority);
 
-parse!(Con = Udent Vec::<Udent>);
+parse!(Con = Udent Seq::<Udent>);
 
-impl<'a> Parse<'a> for Opr<'a> {
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        todo!()
-    }
-}
+parse!(Opr = AppExpr OprName InfixExprPtr);
 
-impl<'a> Parse<'a> for App<'a> {
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        todo!()
-    }
-}
+parse!(App = AtExprPtr NeSeq<AtExprPtr>);
 
-parse!(Cond = :If: ExprPtr :Then: ExprPtr :Else: ExprPtr);
+parse!(Cond = {If} ExprPtr {Then} ExprPtr {Else} ExprPtr);
 
-// TODO: make non empty
-parse!(Abs = :Backslash: Vec::<Ident> :Arrow: ExprPtr);
+parse!(Abs = {Backslash} NeSeq::<Ident> {Arrow} ExprPtr);
 
-// TODO: maybe non empty?
-parse!(Case = :Case: ExprPtr :Of: Vec::<Branch>);
+parse!(Case = {Case} ExprPtr {Of} NeSeq::<Branch>);
 
-parse!(Branch = :Pipe: PatPtr :Arrow: ExprPtr :Semicolon:);
+parse!(Branch = {Pipe} PatPtr {Arrow} ExprPtr {Semicolon});
 
-impl<'a> Parse<'a> for Let<'a> {
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        let kind = LetKind::parse(ts)?;
-        todo!()
-    }
-}
+parse!(LetFuncDef = Ident Seq::<Ident> {Assign} ExprPtr {Semicolon});
 
-impl<'a> Parse<'a> for Expr<'a> {
-    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
-        todo!()
-    }
-}
+parse!(Let = LetKind NeSeq<LetFuncDef> {In} ExprPtr);
 
-parse!(As = Ident AtPatPtr);
+parse!(AtExpr = Lit | Var | WrapExpr);
 
-parse!(AtPat = As | Var | Lit | PatPtr);
+parse!(WrapExpr = {LParen} ExprPtr {RParen});
 
-parse!(PatCon = Udent Vec::<AtPatPtr>);
+parse!(AppExpr = App | AtExpr);
+
+parse!(InfixExpr = AppExpr | Abs | Opr);
+
+parse!(Expr = InfixExpr | Cond | Case | Let);
+
+parse!(As = Ident {As} AtPatPtr);
+
+parse!(AtPat = As | Ident | Lit | WrapPat);
+
+parse!(PatCon = Udent Seq::<AtPatPtr>);
+
+parse!(WrapPat = {LParen} PatPtr {RParen});
 
 parse!(Pat = AtPat | PatCon);
 
-// todo:
-// fn recover usize -> (line, col)
-// parse
+impl<'a, T> Parse<'a> for Seq<T>
+where
+    T: Parse<'a>,
+{
+    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
+        let mut items = Vec::new();
+        let mut tsc = ts.clone();
+
+        while let Ok(item) = T::parse(ts) {
+            items.push(item);
+            tsc = ts.clone();
+        }
+        *ts = tsc;
+
+        Ok(Seq::new(items))
+    }
+}
+
+impl<'a, T> Parse<'a> for NeSeq<T>
+where
+    T: Parse<'a>,
+{
+    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
+        let first = T::parse(ts)?;
+        let seq = Seq::<T>::parse(ts)?;
+
+        let mut items = Vec::new();
+        items.push(first);
+        items.extend(seq.items);
+
+        Ok(NeSeq::new(items))
+    }
+}
+
+impl<'a, T> Parse<'a> for Pipe<T>
+where
+    T: Parse<'a>,
+{
+    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
+        let mut items = Vec::new();
+        items.push(T::parse(ts)?);
+
+        while let Some(Ok((Token::Pipe, _))) = ts.peek() {
+            ts.expect(Token::Pipe)?;
+            items.push(T::parse(ts)?);
+        }
+
+        Ok(Pipe::new(items))
+    }
+}
+
+impl<'a, T> Parse<'a> for Box<T>
+where
+    T: Parse<'a>,
+{
+    fn parse(ts: &mut TokenStream<'a>) -> ParseResult<Self> {
+        let inner = T::parse(ts)?;
+
+        Ok(Box::new(inner))
+    }
+}
+
+// TODO: better error handling & messages
+// create function to convert for Pos(idx) to {line}:{col}
+
+// TODO: convert Parse into template with Iterator
