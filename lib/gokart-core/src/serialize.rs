@@ -52,6 +52,7 @@ impl Deserializable for u64 {
     }
 }
 
+<<<<<<< HEAD
 impl Serializable for i64 {
     fn serialize<W>(&self, w: &mut W)
     where
@@ -74,6 +75,8 @@ impl Deserializable for i64 {
     }
 }
 
+=======
+>>>>>>> 087127a (Add serialization)
 impl Serializable for usize {
     fn serialize<W>(&self, w: &mut W)
     where
@@ -149,8 +152,11 @@ impl Serializable for crate::prim_op::PrimOp {
             crate::PrimOp::IntDiv => 4,
             crate::PrimOp::IntLe => 5,
             crate::PrimOp::IntEq => 6,
+<<<<<<< HEAD
             crate::PrimOp::Print => 99,
             _ => 666,
+=======
+>>>>>>> 087127a (Add serialization)
         };
         tag.serialize(w);
     }
@@ -170,7 +176,10 @@ impl Deserializable for crate::prim_op::PrimOp {
             4 => Ok(crate::PrimOp::IntDiv),
             5 => Ok(crate::PrimOp::IntLe),
             6 => Ok(crate::PrimOp::IntEq),
+<<<<<<< HEAD
             99 => Ok(crate::PrimOp::Print),
+=======
+>>>>>>> 087127a (Add serialization)
             _ => Err(Error::UnexpectedOpCode),
         }
     }
@@ -200,7 +209,10 @@ impl Serializable for crate::OpCode {
             crate::OpCode::GotoFalse(_) => 16,
             crate::OpCode::Switch(_, _) => 17,
             crate::OpCode::Goto(_) => 18,
+<<<<<<< HEAD
             crate::OpCode::Read => 19
+=======
+>>>>>>> 087127a (Add serialization)
         };
         tag.serialize(w);
 
@@ -226,7 +238,10 @@ impl Serializable for crate::OpCode {
             crate::OpCode::App => (),
             crate::OpCode::Skip => (),
             crate::OpCode::Stop => (),
+<<<<<<< HEAD
             crate::OpCode::Read => (),
+=======
+>>>>>>> 087127a (Add serialization)
         };
     }
 }
@@ -241,7 +256,11 @@ impl Deserializable for crate::OpCode {
         match tag {
             1 => u32::deserialize(r).map(crate::OpCode::Acc),
             2 => u32::deserialize(r).map(crate::OpCode::Rest),
+<<<<<<< HEAD
             3 => i64::deserialize(r).map(crate::OpCode::QuoteInt),
+=======
+            3 => i32::deserialize(r).map(crate::OpCode::QuoteInt),
+>>>>>>> 087127a (Add serialization)
             4 => Ok(crate::OpCode::Push),
             5 => Ok(crate::OpCode::Swap),
             6 => crate::PrimOp::deserialize(r).map(crate::OpCode::Prim),
@@ -250,18 +269,29 @@ impl Deserializable for crate::OpCode {
             9 => Ok(crate::OpCode::Clear),
             10 => Ok(crate::OpCode::Cons),
             11 => Ok(crate::OpCode::App),
+<<<<<<< HEAD
             12 => usize::deserialize(r).map(crate::OpCode::Pack),
+=======
+            12 => u32::deserialize(r).map(crate::OpCode::Pack),
+>>>>>>> 087127a (Add serialization)
             13 => Ok(crate::OpCode::Skip),
             14 => Ok(crate::OpCode::Stop),
             15 => usize::deserialize(r).map(crate::OpCode::Call),
             16 => usize::deserialize(r).map(crate::OpCode::GotoFalse),
             17 => {
+<<<<<<< HEAD
                 let a = usize::deserialize(r)?;
+=======
+                let a = u32::deserialize(r)?;
+>>>>>>> 087127a (Add serialization)
                 let b = usize::deserialize(r)?;
                 Ok(crate::OpCode::Switch(a, b))
             }
             18 => usize::deserialize(r).map(crate::OpCode::Goto),
+<<<<<<< HEAD
             19 => Ok(crate::OpCode::Read),
+=======
+>>>>>>> 087127a (Add serialization)
             _ => Err(Error::UnexpectedOpCode),
         }
     }
