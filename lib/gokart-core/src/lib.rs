@@ -5,6 +5,7 @@ mod op_code;
 mod prim_op;
 mod types;
 mod value;
+mod serialize;
 
 pub use code::*;
 pub use op_code::*;
