@@ -3,7 +3,7 @@ use std::ops;
 use crate::{Label, OpCode};
 
 pub struct Code {
-    data: Vec<OpCode>,
+    pub data: Vec<OpCode>,
 }
 
 impl<T> From<T> for Code
