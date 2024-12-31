@@ -1,0 +1,12 @@
+[package]
+name = "gokart-parse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gokart-core = { path = "../gokart-core" }
+nom = "7.1.3"
+nom_locate = "4.2.0"
+derive-new = "0.7.0"
+strum = "0.26.3"
+strum_macros = "0.26.3"

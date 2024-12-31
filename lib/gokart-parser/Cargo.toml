@@ -1,8 +1,0 @@
-[package]
-name = "gokart-parser"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-gokart-core = { path = "../gokart-core" }
-thiserror = "2"

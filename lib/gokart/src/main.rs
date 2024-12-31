@@ -1,4 +1,4 @@
-use gokart_parser::parse;
+use gokart_parse::parse;
 
 fn main() {
     let input = r#"

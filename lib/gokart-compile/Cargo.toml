@@ -1,5 +1,5 @@
 [package]
-name = "gokart-compiler"
+name = "gokart-compile"
 version = "0.1.0"
 edition = "2021"
 
