@@ -196,7 +196,7 @@ fn tpl(i: Span) -> ParseRes<Tpl> {
 fn branch(i: Span) -> ParseRes<(Tpl, Term)> {
     let res = tuple((
         expect(TokenKind::Pipe),
-        con_tpl,
+        tpl,
         expect(TokenKind::Arrow),
         term,
         expect(TokenKind::Semicolon),

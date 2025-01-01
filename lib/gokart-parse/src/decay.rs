@@ -20,6 +20,20 @@ impl<'a> AsPat<'a> for Name<'a> {
     }
 }
 
+impl<'a> AsPat<'a> for Tpl<'a> {
+    fn as_pat(&self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
+        match self.deref() {
+            TplNode::As(var, tpl) => {
+                let idx = sc.var(&var.span)?;
+                Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
+            }
+            TplNode::Var(var) => var.as_pat(sc),
+            TplNode::Lit(lit) => todo!(),
+            TplNode::Con(name, vec) => todo!(),
+        }
+    }
+}
+
 impl<'a> AsExp<'a> for Term<'a> {
     fn as_exp(&self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
         match self.deref() {
@@ -41,7 +55,6 @@ impl<'a> AsExp<'a> for Term<'a> {
                 Ok(ExpNode::Sys(prim_op).ptr())
             }
             TermNode::App(head, children) => {
-                // todo: right?
                 let init = head.as_exp(sc);
                 children.iter().fold(init, |acc, child| {
                     Ok(ExpNode::App(acc?, child.as_exp(sc)?).ptr())
@@ -52,13 +65,20 @@ impl<'a> AsExp<'a> for Term<'a> {
             }
             TermNode::Abs(params, body) => {
                 let init = body.as_exp(sc);
-                params.iter().fold(init, |acc, param| {
+                params.iter().rfold(init, |acc, param| {
                     let pat = param.as_pat(sc)?;
                     Ok(ExpNode::Abs(pat, acc?).ptr())
                 })
             }
             TermNode::Case(body, branches) => todo!(),
-            TermNode::Let(kind, funcs, body) => todo!(),
+            TermNode::Let(kind, funcs, body) => {
+                todo!()
+                // let body = body.as_exp(sc)?;
+                // Ok(match kind {
+                //     LetKind::NonRec => ExpNode::Let(_, _, body).ptr(),
+                //     LetKind::Rec => ExpNode::Letrec(_, _, body).ptr(),
+                // })
+            }
         }
     }
 }
