@@ -1,10 +1,17 @@
+use std::rc::Rc;
+
+use crate::{Int, PrimOp};
+
 pub type Var = usize;
 pub type Ctor = usize;
 
-#[derive(Debug)]
-pub enum Sys {} // todo
+#[derive(Debug, Clone)]
+pub enum Sys {
+    IntLit(Int),
+    PrimOp(PrimOp),
+} // TODO: StrLit, DoubleLit, etc
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExpNode {
     Var(Var),
     Sys(Sys),
@@ -21,11 +28,11 @@ pub enum ExpNode {
 
 impl ExpNode {
     pub fn ptr(self) -> Exp {
-        Box::new(self)
+        Rc::new(self)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PatNode {
     Var(Var),
     Empty,
@@ -35,9 +42,9 @@ pub enum PatNode {
 
 impl PatNode {
     pub fn ptr(self) -> Pat {
-        Box::new(self)
+        Rc::new(self)
     }
 }
 
-pub type Pat = Box<PatNode>;
-pub type Exp = Box<ExpNode>;
+pub type Pat = Rc<PatNode>;
+pub type Exp = Rc<ExpNode>;

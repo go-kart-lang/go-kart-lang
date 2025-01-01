@@ -35,18 +35,18 @@ fn expect(kind: TokenKind) -> impl Fn(Span) -> ParseRes<Token> {
     }
 }
 
-fn ident(i: Span) -> ParseRes<Span> {
-    map(expect(TokenKind::Ident), |tok| tok.span)(i)
+fn ident(i: Span) -> ParseRes<Name> {
+    map(expect(TokenKind::Ident), |tok| Name::new(tok.span))(i)
 }
 
-fn udent(i: Span) -> ParseRes<Span> {
-    map(expect(TokenKind::Udent), |tok| tok.span)(i)
+fn udent(i: Span) -> ParseRes<Name> {
+    map(expect(TokenKind::Udent), |tok| Name::new(tok.span))(i)
 }
 
-fn con(i: Span) -> ParseRes<(Span, Vec<Span>)> {
+fn con(i: Span) -> ParseRes<Con> {
     let res = tuple((udent, many0(udent)));
 
-    map(res, |(name, params)| (name, params))(i)
+    map(res, |(name, params)| Con::new(name, params))(i)
 }
 
 fn opr(i: Span) -> ParseRes<Term> {
@@ -104,10 +104,10 @@ fn lit(i: Span) -> ParseRes<Lit> {
     }
 }
 
-fn var(i: Span) -> ParseRes<Span> {
+fn var(i: Span) -> ParseRes<Name> {
     match token(i)? {
-        (s, tok) if tok.kind == TokenKind::Ident => Ok((s, tok.span)),
-        (s, tok) if tok.kind == TokenKind::Udent => Ok((s, tok.span)),
+        (s, tok) if tok.kind == TokenKind::Ident => Ok((s, Name::new(tok.span))),
+        (s, tok) if tok.kind == TokenKind::Udent => Ok((s, Name::new(tok.span))),
         (s, tok) => error!(s, "Expect Var but got {}", tok.kind.as_ref()),
     }
 }
@@ -138,16 +138,14 @@ fn cond(i: Span) -> ParseRes<Term> {
         term,
     ));
     map(res, |(_, cond, _, left, _, right)| {
-        Ptr::new(TermNode::Cond(cond, left, right))
+        TermNode::Cond(cond, left, right).ptr()
     })(i)
 }
 
 fn app(i: Span) -> ParseRes<Term> {
     let res = tuple((at_term, many1(at_term)));
 
-    map(res, |(head, children)| {
-        Ptr::new(TermNode::App(head, children))
-    })(i)
+    map(res, |(head, children)| TermNode::App(head, children).ptr())(i)
 }
 
 fn abs(i: Span) -> ParseRes<Term> {
@@ -159,7 +157,7 @@ fn abs(i: Span) -> ParseRes<Term> {
     ));
 
     map(res, |(_, params, _, body)| {
-        Ptr::new(TermNode::Abs(params, body))
+        TermNode::Abs(params, body).ptr()
     })(i)
 }
 
@@ -185,7 +183,7 @@ fn at_tpl(i: Span) -> ParseRes<Tpl> {
 }
 
 fn con_tpl(i: Span) -> ParseRes<Tpl> {
-    // TODO: maybe many1?
+    // todo: maybe many1?
     let res = tuple((udent, many0(at_tpl)));
 
     map(res, |(name, tpls)| TplNode::Con(name, tpls).ptr())(i)
@@ -198,7 +196,7 @@ fn tpl(i: Span) -> ParseRes<Tpl> {
 fn branch(i: Span) -> ParseRes<(Tpl, Term)> {
     let res = tuple((
         expect(TokenKind::Pipe),
-        tpl,
+        con_tpl,
         expect(TokenKind::Arrow),
         term,
         expect(TokenKind::Semicolon),
@@ -216,7 +214,7 @@ fn case(i: Span) -> ParseRes<Term> {
     ));
 
     map(res, |(_, cond, _, branches)| {
-        Ptr::new(TermNode::Case(cond, branches))
+        TermNode::Case(cond, branches).ptr()
     })(i)
 }
 
@@ -257,16 +255,13 @@ fn infix_kind(i: Span) -> ParseRes<InfixKind> {
 }
 
 fn opr_name(i: Span) -> ParseRes<Span> {
-    match token(i)? {
-        (tail, tok) if tok.kind == TokenKind::Opr => Ok((tail, tok.span)),
-        _ => todo!(),
-    }
+    map(expect(TokenKind::Opr), |tok| tok.span)(i)
 }
 
-fn infix_priority(i: Span) -> ParseRes<InfixPriority> {
+fn infix_priority(i: Span) -> ParseRes<u64> {
     match token(i)? {
         (s, tok) if tok.kind == TokenKind::Int => match tok.span.fragment().parse::<i64>() {
-            Ok(val) if val > 0 => Ok((s, InfixPriority::new(val as u64))),
+            Ok(val) if val > 0 => Ok((s, val as u64)),
             Ok(val) => failure!(s, "InfixPriority cannot be negative but got {}", val),
             Err(e) => failure!(s, "Bad int literal for InfixPriority: {}", e),
         },
@@ -306,3 +301,5 @@ pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseErr> {
         _ => Err(ParseErr::new(i, "Unknown error")), // todo
     }
 }
+
+// todo: tests
