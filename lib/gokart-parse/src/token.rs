@@ -44,9 +44,9 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    pub fn at<'a>(&self, s: Span<'a>) -> Token<'a> {
+    pub fn at<'a>(self, s: Span<'a>) -> Token<'a> {
         Token {
-            kind: *self,
+            kind: self,
             span: s,
         }
     }
