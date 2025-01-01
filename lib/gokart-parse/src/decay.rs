@@ -1,5 +1,9 @@
-use crate::{ast::*, err::LogicRes, scope::Scope};
-use gokart_core::{Exp, ExpNode, Pat, PatNode};
+use crate::{
+    ast::*,
+    err::{LogicErr, LogicRes},
+    scope::Scope,
+};
+use gokart_core::{Exp, ExpNode, Pat, PatNode, PrimOp, Sys};
 use std::ops::Deref;
 
 trait AsExp<'a> {
@@ -23,8 +27,19 @@ impl<'a> AsExp<'a> for Term<'a> {
                 let idx = sc.var(&var.span)?;
                 Ok(ExpNode::Var(idx).ptr())
             }
-            TermNode::Lit(lit) => todo!(),
-            TermNode::Opr(left, opr, right) => todo!(),
+            TermNode::Lit(lit) => Ok(match *lit {
+                Lit::Int(val) => ExpNode::Sys(Sys::IntLit(val)).ptr(),
+                Lit::Double(val) => todo!(),
+                Lit::Str(val) => todo!(),
+            }),
+            TermNode::Opr(left, opr, right) => {
+                let op_kind = match PrimOp::try_from(*opr.fragment()) {
+                    Ok(kind) => Ok(kind),
+                    Err(m) => Err(LogicErr::new(*opr, m)),
+                };
+                let prim_op = Sys::PrimOp(left.as_exp(sc)?, op_kind?, right.as_exp(sc)?);
+                Ok(ExpNode::Sys(prim_op).ptr())
+            }
             TermNode::App(head, children) => {
                 // todo: right?
                 let init = head.as_exp(sc);

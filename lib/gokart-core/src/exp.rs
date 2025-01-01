@@ -8,7 +8,7 @@ pub type Ctor = usize;
 #[derive(Debug, Clone)]
 pub enum Sys {
     IntLit(Int),
-    PrimOp(PrimOp),
+    PrimOp(Exp, PrimOp, Exp),
 } // TODO: StrLit, DoubleLit, etc
 
 #[derive(Debug, Clone)]
