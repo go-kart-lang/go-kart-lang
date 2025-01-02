@@ -8,7 +8,7 @@ use nom::{
     branch::alt,
     character::complete::multispace0,
     combinator::{eof, map},
-    multi::{many0, many1, separated_list0},
+    multi::{many0, many1, separated_list0, separated_list1},
     sequence::tuple,
 };
 
@@ -65,24 +65,21 @@ fn let_kind(i: Span) -> ParseRes<LetKind> {
     }
 }
 
-fn let_func_def(i: Span) -> ParseRes<FuncDef> {
+fn let_part(i: Span) -> ParseRes<(Tpl, Term)> {
     let res = tuple((
-        ident,
-        many0(ident),
+        tpl,
         expect(TokenKind::Assign),
         term,
         expect(TokenKind::Semicolon),
     ));
 
-    map(res, |(name, params, _, body, _)| {
-        FuncDef::new(name, params, body)
-    })(i)
+    map(res, |(tpl, _, body, _)| (tpl, body))(i)
 }
 
 fn let_term(i: Span) -> ParseRes<Term> {
-    let res = tuple((let_kind, many1(let_func_def), expect(TokenKind::In), term));
-    map(res, |(kind, funcs, _, body)| {
-        TermNode::Let(kind, funcs, body).ptr()
+    let res = tuple((let_kind, many1(let_part), expect(TokenKind::In), term));
+    map(res, |(kind, parts, _, body)| {
+        TermNode::Let(kind, parts, body).ptr()
     })(i)
 }
 
@@ -167,42 +164,41 @@ fn as_tpl(i: Span) -> ParseRes<Tpl> {
     map(res, |(name, _, tpl)| TplNode::As(name, tpl).ptr())(i)
 }
 
-fn wrap_tpl(i: Span) -> ParseRes<Tpl> {
-    let res = tuple((expect(TokenKind::LParen), tpl, expect(TokenKind::RParen)));
+fn empty_tpl(i: Span) -> ParseRes<Tpl> {
+    let res = tuple((expect(TokenKind::LParen), expect(TokenKind::RParen)));
 
-    map(res, |(_, tpl, _)| tpl)(i)
+    map(res, |(_, _)| TplNode::Empty.ptr())(i)
+}
+
+fn seq_tpl(i: Span) -> ParseRes<Tpl> {
+    let res = tuple((
+        expect(TokenKind::LParen),
+        separated_list1(expect(TokenKind::Comma), tpl),
+        expect(TokenKind::RParen),
+    ));
+
+    map(res, |(_, tpls, _)| TplNode::Seq(tpls).ptr())(i)
 }
 
 fn at_tpl(i: Span) -> ParseRes<Tpl> {
-    alt((
-        as_tpl,
-        map(ident, |x| TplNode::Var(x).ptr()),
-        map(lit, |x| TplNode::Lit(x).ptr()),
-        wrap_tpl,
-    ))(i)
-}
-
-fn con_tpl(i: Span) -> ParseRes<Tpl> {
-    // todo: maybe many1?
-    let res = tuple((udent, many0(at_tpl)));
-
-    map(res, |(name, tpls)| TplNode::Con(name, tpls).ptr())(i)
+    alt((map(ident, |x| TplNode::Var(x).ptr()), empty_tpl, seq_tpl))(i)
 }
 
 fn tpl(i: Span) -> ParseRes<Tpl> {
-    alt((at_tpl, con_tpl))(i)
+    alt((as_tpl, at_tpl))(i)
 }
 
-fn branch(i: Span) -> ParseRes<(Tpl, Term)> {
+fn branch(i: Span) -> ParseRes<(Name, Tpl, Term)> {
     let res = tuple((
         expect(TokenKind::Pipe),
+        udent,
         tpl,
         expect(TokenKind::Arrow),
         term,
         expect(TokenKind::Semicolon),
     ));
 
-    map(res, |(_, tpl, _, term, _)| (tpl, term))(i)
+    map(res, |(_, con, tpl, _, term, _)| (con, tpl, term))(i)
 }
 
 fn case(i: Span) -> ParseRes<Term> {

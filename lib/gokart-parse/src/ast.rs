@@ -68,19 +68,20 @@ pub struct FuncDef<'a> {
 pub struct InfixDef<'a> {
     pub kind: InfixKind,
     pub opr: Span<'a>,
-    pub priority: u64, // todo
+    pub priority: u64,
 }
 
 #[derive(Debug)]
 pub enum TermNode<'a> {
     Var(Name<'a>),
     Lit(Lit<'a>),
+    Con(Name<'a>, Term<'a>), // todo: parse
     Opr(Term<'a>, Span<'a>, Term<'a>),
     App(Term<'a>, Vec<Term<'a>>),
     Cond(Term<'a>, Term<'a>, Term<'a>),
     Abs(Vec<Name<'a>>, Term<'a>),
-    Case(Term<'a>, Vec<(Tpl<'a>, Term<'a>)>),
-    Let(LetKind, Vec<FuncDef<'a>>, Term<'a>),
+    Case(Term<'a>, Vec<(Name<'a>, Tpl<'a>, Term<'a>)>),
+    Let(LetKind, Vec<(Tpl<'a>, Term<'a>)>, Term<'a>),
 }
 
 impl<'a> TermNode<'a> {
@@ -91,10 +92,10 @@ impl<'a> TermNode<'a> {
 
 #[derive(Debug)]
 pub enum TplNode<'a> {
-    As(Name<'a>, Tpl<'a>),
     Var(Name<'a>),
-    Lit(Lit<'a>),
-    Con(Name<'a>, Vec<Tpl<'a>>),
+    Empty,
+    Seq(Vec<Tpl<'a>>),
+    As(Name<'a>, Tpl<'a>),
 }
 
 impl<'a> TplNode<'a> {
