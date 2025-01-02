@@ -61,7 +61,10 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 Lit::Double(val) => todo!(),
                 Lit::Str(val) => todo!(),
             }),
-            TermNode::Con(name, body) => todo!(),
+            TermNode::Con(name, body) => {
+                let ctor = sc.ctor(&name.span)?;
+                Ok(ExpNode::Con(ctor, body.as_exp(sc)?).ptr())
+            }
             TermNode::Opr(left, opr, right) => {
                 let op_kind = match PrimOp::try_from(*opr.fragment()) {
                     Ok(kind) => Ok(kind),

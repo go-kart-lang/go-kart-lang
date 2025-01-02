@@ -75,7 +75,7 @@ pub struct InfixDef<'a> {
 pub enum TermNode<'a> {
     Var(Name<'a>),
     Lit(Lit<'a>),
-    Con(Name<'a>, Term<'a>), // todo: parse
+    Con(Name<'a>, Term<'a>), // todo: !
     Opr(Term<'a>, Span<'a>, Term<'a>),
     App(Term<'a>, Vec<Term<'a>>),
     Cond(Term<'a>, Term<'a>, Term<'a>),

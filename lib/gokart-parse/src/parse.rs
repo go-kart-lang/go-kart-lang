@@ -117,8 +117,14 @@ fn at_term(i: Span) -> ParseRes<Term> {
     ))(i)
 }
 
+fn con_term(i: Span) -> ParseRes<Term> {
+    let res = tuple((udent, term));
+
+    map(res, |(name, body)| TermNode::Con(name, body).ptr())(i)
+}
+
 fn app_term(i: Span) -> ParseRes<Term> {
-    alt((app, at_term))(i)
+    alt((con_term, app, at_term))(i)
 }
 
 fn infix_term(i: Span) -> ParseRes<Term> {
