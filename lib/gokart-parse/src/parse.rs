@@ -78,8 +78,16 @@ fn let_part(i: Span) -> ParseRes<(Tpl, Term)> {
 
 fn let_term(i: Span) -> ParseRes<Term> {
     let res = tuple((let_kind, many1(let_part), expect(TokenKind::In), term));
+
     map(res, |(kind, parts, _, body)| {
-        TermNode::Let(kind, parts, body).ptr()
+        let (tpls, terms): (Vec<_>, Vec<_>) = parts.into_iter().unzip();
+        TermNode::Let(
+            kind,
+            TplNode::Seq(tpls).ptr(),
+            TermNode::Seq(terms).ptr(),
+            body,
+        )
+        .ptr()
     })(i)
 }
 
@@ -104,7 +112,7 @@ fn lit(i: Span) -> ParseRes<Lit> {
 fn var(i: Span) -> ParseRes<Name> {
     match token(i)? {
         (s, tok) if tok.kind == TokenKind::Ident => Ok((s, Name::new(tok.span))),
-        (s, tok) if tok.kind == TokenKind::Udent => Ok((s, Name::new(tok.span))),
+        // (s, tok) if tok.kind == TokenKind::Udent => Ok((s, Name::new(tok.span))), // todo: ?
         (s, tok) => error!(s, "Expect Var but got {}", tok.kind.as_ref()),
     }
 }
@@ -128,7 +136,7 @@ fn app_term(i: Span) -> ParseRes<Term> {
 }
 
 fn infix_term(i: Span) -> ParseRes<Term> {
-    alt((app_term, abs, opr))(i)
+    alt((opr, app_term, abs))(i)
 }
 
 fn cond(i: Span) -> ParseRes<Term> {
@@ -140,6 +148,7 @@ fn cond(i: Span) -> ParseRes<Term> {
         expect(TokenKind::Else),
         term,
     ));
+
     map(res, |(_, cond, _, left, _, right)| {
         TermNode::Cond(cond, left, right).ptr()
     })(i)
@@ -154,13 +163,13 @@ fn app(i: Span) -> ParseRes<Term> {
 fn abs(i: Span) -> ParseRes<Term> {
     let res = tuple((
         expect(TokenKind::Backslash),
-        many1(ident),
+        many1(param),
         expect(TokenKind::Arrow),
         term,
     ));
 
     map(res, |(_, params, _, body)| {
-        TermNode::Abs(params, body).ptr()
+        TermNode::Abs(TplNode::Seq(params).ptr(), body).ptr()
     })(i)
 }
 
@@ -186,8 +195,12 @@ fn seq_tpl(i: Span) -> ParseRes<Tpl> {
     map(res, |(_, tpls, _)| TplNode::Seq(tpls).ptr())(i)
 }
 
+fn param(i: Span) -> ParseRes<Tpl> {
+    map(ident, |x| TplNode::Var(x).ptr())(i)
+}
+
 fn at_tpl(i: Span) -> ParseRes<Tpl> {
-    alt((map(ident, |x| TplNode::Var(x).ptr()), empty_tpl, seq_tpl))(i)
+    alt((param, empty_tpl, seq_tpl))(i)
 }
 
 fn tpl(i: Span) -> ParseRes<Tpl> {
@@ -234,20 +247,6 @@ fn type_def(i: Span) -> ParseRes<TypeDef> {
     map(res, |(_, name, _, cons)| TypeDef::new(name, cons))(i)
 }
 
-fn func_def(i: Span) -> ParseRes<FuncDef> {
-    let res = tuple((
-        expect(TokenKind::Let),
-        ident,
-        many0(ident),
-        expect(TokenKind::Assign),
-        term,
-    ));
-
-    map(res, |(_, name, params, _, body)| {
-        FuncDef::new(name, params, body)
-    })(i)
-}
-
 fn infix_kind(i: Span) -> ParseRes<InfixKind> {
     match token(i)? {
         (s, tok) if tok.kind == TokenKind::Infixl => Ok((s, InfixKind::Left)),
@@ -282,14 +281,13 @@ fn infix_def(i: Span) -> ParseRes<InfixDef> {
 fn def(i: Span) -> ParseRes<Def> {
     alt((
         map(type_def, |x| Def::TypeDef(x)),
-        map(func_def, |x| Def::FuncDef(x)),
         map(infix_def, |x| Def::InfixDef(x)),
     ))(i)
 }
 
 fn ast(i: Span) -> ParseRes<Ast> {
-    let res = tuple((many1(def), multispace0, eof));
-    map(res, |(x, _, _)| Ast::new(x))(i)
+    let res = tuple((many0(def), term, multispace0, eof));
+    map(res, |(defs, body, _, _)| Ast::new(defs, body))(i)
 }
 
 pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseErr> {

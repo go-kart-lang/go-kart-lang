@@ -24,12 +24,12 @@ pub enum Lit<'a> {
 #[derive(Debug, new)]
 pub struct Ast<'a> {
     pub defs: Vec<Def<'a>>,
+    pub body: Term<'a>,
 }
 
 #[derive(Debug, new)]
 pub enum Def<'a> {
     TypeDef(TypeDef<'a>),
-    FuncDef(FuncDef<'a>),
     InfixDef(InfixDef<'a>),
 }
 
@@ -58,13 +58,6 @@ pub struct TypeDef<'a> {
 }
 
 #[derive(Debug, new)]
-pub struct FuncDef<'a> {
-    pub name: Name<'a>,
-    pub params: Vec<Name<'a>>,
-    pub body: Term<'a>,
-}
-
-#[derive(Debug, new)]
 pub struct InfixDef<'a> {
     pub kind: InfixKind,
     pub opr: Span<'a>,
@@ -75,13 +68,14 @@ pub struct InfixDef<'a> {
 pub enum TermNode<'a> {
     Var(Name<'a>),
     Lit(Lit<'a>),
+    Seq(Vec<Term<'a>>),
     Con(Name<'a>, Term<'a>), // todo: !
     Opr(Term<'a>, Span<'a>, Term<'a>),
     App(Term<'a>, Vec<Term<'a>>),
     Cond(Term<'a>, Term<'a>, Term<'a>),
-    Abs(Vec<Name<'a>>, Term<'a>),
+    Abs(Tpl<'a>, Term<'a>),
     Case(Term<'a>, Vec<(Name<'a>, Tpl<'a>, Term<'a>)>),
-    Let(LetKind, Vec<(Tpl<'a>, Term<'a>)>, Term<'a>),
+    Let(LetKind, Tpl<'a>, Term<'a>, Term<'a>),
 }
 
 impl<'a> TermNode<'a> {

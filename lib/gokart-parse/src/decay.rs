@@ -1,7 +1,7 @@
 use crate::{
     ast::*,
     err::{LogicErr, LogicRes},
-    scope::Scope,
+    scope::{Names, Scope},
 };
 use gokart_core::{Exp, ExpNode, Pat, PatNode, PrimOp, Sys};
 use std::ops::Deref;
@@ -14,22 +14,23 @@ trait AsPat<'a> {
     fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat>;
 }
 
-impl<'a> AsPat<'a> for &Name<'a> {
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        Ok(PatNode::Var(sc.var(&self.span)?).ptr())
-    }
+trait Introduce<'a> {
+    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()>;
 }
 
 impl<'a> AsPat<'a> for &Tpl<'a> {
     fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
         match self.deref() {
+            TplNode::Var(var) => {
+                let idx = sc.var(&var.span)?;
+                Ok(PatNode::Var(idx).ptr())
+            }
+            TplNode::Empty => Ok(PatNode::Empty.ptr()),
+            TplNode::Seq(tpls) => tpls.iter().as_pat(sc),
             TplNode::As(var, tpl) => {
                 let idx = sc.var(&var.span)?;
                 Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
             }
-            TplNode::Var(var) => var.as_pat(sc),
-            TplNode::Empty => Ok(PatNode::Empty.ptr()),
-            TplNode::Seq(tpls) => tpls.iter().as_pat(sc),
         }
     }
 }
@@ -61,7 +62,9 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 Lit::Double(val) => todo!(),
                 Lit::Str(val) => todo!(),
             }),
+            TermNode::Seq(terms) => terms.iter().as_exp(sc),
             TermNode::Con(name, body) => {
+                // todo
                 let ctor = sc.ctor(&name.span)?;
                 Ok(ExpNode::Con(ctor, body.as_exp(sc)?).ptr())
             }
@@ -83,32 +86,40 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 Ok(ExpNode::Cond(cond.as_exp(sc)?, left.as_exp(sc)?, right.as_exp(sc)?).ptr())
             }
             TermNode::Abs(params, body) => {
-                let init = body.as_exp(sc);
-                params.iter().rfold(init, |acc, param| {
-                    let pat = param.as_pat(sc)?;
-                    Ok(ExpNode::Abs(pat, acc?).ptr())
+                let names = Names::new().collect(&params)?;
+                names.with_scope(sc, |s| {
+                    Ok(ExpNode::Abs(params.as_pat(s)?, body.as_exp(s)?).ptr())
                 })
             }
-            TermNode::Case(body, branches) => {
+            TermNode::Case(cond, branches) => {
+                // todo: check pat matches con
+
+                let cond = cond.as_exp(sc)?;
                 let branches = branches
                     .into_iter()
                     .map(|(con, tpl, term)| {
-                        Ok((sc.ctor(&con.span)?, tpl.as_pat(sc)?, term.as_exp(sc)?))
+                        let ctor = sc.ctor(&con.span)?;
+                        let names = Names::new().collect(&tpl)?;
+                        names.with_scope(sc, |s| {
+                            let pat = tpl.as_pat(s)?;
+                            let exp = term.as_exp(s)?;
+                            Ok((ctor, pat, exp))
+                        })
                     })
                     .collect::<LogicRes<Vec<_>>>();
-                let body = body.as_exp(sc)?;
-                Ok(ExpNode::Case(body, branches?).ptr())
+                Ok(ExpNode::Case(cond, branches?).ptr())
             }
-            TermNode::Let(kind, parts, body) => {
-                let (pat, exp) = (
-                    parts.iter().map(|(x, _)| x).as_pat(sc)?,
-                    parts.iter().map(|(_, x)| x).as_exp(sc)?,
-                );
-                let body = body.as_exp(sc)?;
+            TermNode::Let(kind, tpl, term, body) => {
+                let names = Names::new().collect(&tpl)?;
+                names.with_scope(sc, |s| {
+                    let pat = tpl.as_pat(s)?;
+                    let exp = term.as_exp(s)?;
+                    let body = body.as_exp(s)?;
 
-                Ok(match kind {
-                    LetKind::NonRec => ExpNode::Let(pat, exp, body).ptr(),
-                    LetKind::Rec => ExpNode::Letrec(pat, exp, body).ptr(),
+                    Ok(match kind {
+                        LetKind::NonRec => ExpNode::Let(pat, exp, body).ptr(),
+                        LetKind::Rec => ExpNode::Letrec(pat, exp, body).ptr(),
+                    })
                 })
             }
         }
@@ -130,36 +141,23 @@ where
     }
 }
 
-impl<'a> AsExp<'a> for &TypeDef<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        todo!()
+impl<'a> Introduce<'a> for &TypeDef<'a> {
+    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
+        Ok(()) // todo
     }
 }
 
-impl<'a> AsExp<'a> for &FuncDef<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        let init = self.body.as_exp(sc);
-        let func = self.params.iter().fold(init, |acc, param| {
-            let pat = param.as_pat(sc)?;
-            Ok(ExpNode::Abs(pat, acc?).ptr())
-        })?;
-        sc.funcs.add(&self.name.span, func)?;
-        todo!()
+impl<'a> Introduce<'a> for &InfixDef<'a> {
+    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
+        Ok(()) // todo
     }
 }
 
-impl<'a> AsExp<'a> for &InfixDef<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        todo!()
-    }
-}
-
-impl<'a> AsExp<'a> for &Def<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
+impl<'a> Introduce<'a> for &Def<'a> {
+    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
         match self {
-            Def::TypeDef(type_def) => type_def.as_exp(sc),
-            Def::FuncDef(func_def) => func_def.as_exp(sc),
-            Def::InfixDef(infix_def) => infix_def.as_exp(sc),
+            Def::TypeDef(type_def) => type_def.introduce(sc),
+            Def::InfixDef(infix_def) => infix_def.introduce(sc),
         }
     }
 }
@@ -167,9 +165,9 @@ impl<'a> AsExp<'a> for &Def<'a> {
 impl<'a> AsExp<'a> for &Ast<'a> {
     fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
         for def in self.defs.iter() {
-            def.as_exp(sc)?;
+            def.introduce(sc)?;
         }
-        todo!() // get main
+        self.body.as_exp(sc)
     }
 }
 

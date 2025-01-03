@@ -1,9 +1,13 @@
 use crate::{
+    ast::{Tpl, TplNode},
     err::{LogicErr, LogicRes},
     token::Span,
 };
-use gokart_core::{Ctor, Exp, Var};
-use std::collections::HashMap;
+use gokart_core::{Ctor, Var};
+use std::{
+    collections::{hash_set, HashMap, HashSet},
+    ops::Deref,
+};
 
 #[derive(Debug)]
 pub struct NameTable<'a> {
@@ -31,61 +35,81 @@ impl<'a> NameTable<'a> {
         }
     }
 
-    pub fn push(&mut self, s: &Span<'a>) -> LogicRes<'a, usize> {
+    pub fn push(&mut self, s: &Span<'a>) -> LogicRes<'a, ()> {
         let idx = self.cnt;
         self.cnt += 1;
         self.items
             .entry(s.fragment())
             .and_modify(|x| x.push(idx))
             .or_insert(vec![idx]);
-        Ok(idx)
+        Ok(())
     }
 
-    pub fn pop(&mut self, s: &Span<'a>) -> LogicRes<'a, usize> {
+    pub fn pop(&mut self, s: &Span<'a>) -> LogicRes<'a, ()> {
         match self.items.get_mut(s.fragment()) {
             None => Err(LogicErr::new(*s, "todo")),
             Some(vals) => match vals.pop() {
                 None => Err(LogicErr::new(*s, "todo")),
-                Some(item) => Ok(item),
+                Some(_) => Ok(()),
             },
         }
     }
 }
 
 #[derive(Debug)]
-pub struct FuncTable<'a> {
-    items: HashMap<&'a str, Exp>,
+pub struct Names<'a> {
+    items: HashSet<Span<'a>>,
 }
 
-impl<'a> FuncTable<'a> {
-    #[inline]
+impl<'a> Names<'a> {
     pub fn new() -> Self {
-        Self {
-            items: HashMap::new(),
+        Names {
+            items: HashSet::new(),
         }
     }
 
-    pub fn get(&self, s: &Span<'a>) -> LogicRes<'a, Exp> {
-        let name = s.fragment();
-        match self.items.get(name) {
-            None => Err(LogicErr::new(*s, "todo")),
-            Some(item) => Ok(item.clone()),
+    fn add(&mut self, item: &Span<'a>) -> LogicRes<'a, ()> {
+        match self.items.insert(*item) {
+            true => Ok(()),
+            false => Err(LogicErr::new(*item, "todo")),
         }
     }
 
-    pub fn add(&mut self, s: &Span<'a>, exp: Exp) -> LogicRes<'a, ()> {
-        let name = s.fragment();
-        match self.items.insert(name, exp) {
-            None => Ok(()),
-            Some(_) => todo!(),
+    pub fn collect(mut self, tpl: &Tpl<'a>) -> LogicRes<'a, Self> {
+        match tpl.deref() {
+            TplNode::Var(name) => {
+                self.add(&name.span)?;
+                Ok(self)
+            }
+            TplNode::Empty => Ok(self),
+            TplNode::Seq(tpls) => tpls.iter().fold(Ok(self), |acc, tpl| acc?.collect(tpl)),
+            TplNode::As(var, tpl) => {
+                self.add(&var.span)?;
+                self.collect(tpl)
+            }
         }
+    }
+
+    #[inline]
+    pub fn iter<'b>(&'b self) -> hash_set::Iter<'b, Span<'a>> {
+        self.items.iter()
+    }
+
+    #[inline]
+    pub fn with_scope<F, T>(&self, sc: &mut Scope<'a>, f: F) -> LogicRes<'a, T>
+    where
+        F: Fn(&mut Scope<'a>) -> LogicRes<'a, T>,
+    {
+        sc.push_vars(self)?;
+        let res = f(sc);
+        sc.pop_vars(self)?;
+        res
     }
 }
 
 pub struct Scope<'a> {
-    pub vars: NameTable<'a>,
-    pub ctors: NameTable<'a>,
-    pub funcs: FuncTable<'a>,
+    vars: NameTable<'a>,
+    ctors: NameTable<'a>,
 }
 
 impl<'a> Scope<'a> {
@@ -94,7 +118,6 @@ impl<'a> Scope<'a> {
         Self {
             vars: NameTable::new(),
             ctors: NameTable::new(),
-            funcs: FuncTable::new(),
         }
     }
 
@@ -103,13 +126,22 @@ impl<'a> Scope<'a> {
         self.vars.get(s)
     }
 
-    #[inline]
-    pub fn ctor(&self, s: &Span<'a>) -> LogicRes<'a, Ctor> {
-        self.ctors.get(s)
+    pub fn push_vars(&mut self, names: &Names<'a>) -> LogicRes<'a, ()> {
+        names.iter().fold(Ok(()), |acc, name| {
+            acc?;
+            self.vars.push(name)
+        })
+    }
+
+    pub fn pop_vars(&mut self, names: &Names<'a>) -> LogicRes<'a, ()> {
+        names.iter().fold(Ok(()), |acc, name| {
+            acc?;
+            self.vars.pop(name)
+        })
     }
 
     #[inline]
-    pub fn func(&self, s: &Span<'a>) -> LogicRes<'a, Exp> {
-        self.funcs.get(s)
+    pub fn ctor(&self, s: &Span<'a>) -> LogicRes<'a, Ctor> {
+        self.ctors.get(s)
     }
 }

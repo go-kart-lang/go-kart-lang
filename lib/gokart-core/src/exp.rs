@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{Int, PrimOp};
 
 pub type Var = usize;
@@ -28,7 +26,7 @@ pub enum ExpNode {
 
 impl ExpNode {
     pub fn ptr(self) -> Exp {
-        Rc::new(self)
+        Box::new(self)
     }
 }
 
@@ -42,9 +40,9 @@ pub enum PatNode {
 
 impl PatNode {
     pub fn ptr(self) -> Pat {
-        Rc::new(self)
+        Box::new(self)
     }
 }
 
-pub type Pat = Rc<PatNode>;
-pub type Exp = Rc<ExpNode>;
+pub type Pat = Box<PatNode>;
+pub type Exp = Box<ExpNode>;
