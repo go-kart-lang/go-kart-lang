@@ -10,46 +10,6 @@ trait AsExp<'a> {
     fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp>;
 }
 
-trait AsPat<'a> {
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat>;
-}
-
-trait Introduce<'a> {
-    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()>;
-}
-
-impl<'a> AsPat<'a> for &Tpl<'a> {
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        match self.deref() {
-            TplNode::Var(var) => {
-                let idx = sc.var(&var.span)?;
-                Ok(PatNode::Var(idx).ptr())
-            }
-            TplNode::Empty => Ok(PatNode::Empty.ptr()),
-            TplNode::Seq(tpls) => tpls.iter().as_pat(sc),
-            TplNode::As(var, tpl) => {
-                let idx = sc.var(&var.span)?;
-                Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
-            }
-        }
-    }
-}
-
-impl<'a, I> AsPat<'a> for I
-where
-    I: Iterator,
-    <I as Iterator>::Item: AsPat<'a>,
-{
-    fn as_pat(mut self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        match self.next() {
-            None => Ok(PatNode::Empty.ptr()),
-            Some(init) => self.fold(init.as_pat(sc), |acc, item| {
-                Ok(PatNode::Pair(acc?, item.as_pat(sc)?).ptr())
-            }),
-        }
-    }
-}
-
 impl<'a> AsExp<'a> for &Term<'a> {
     fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
         match self.deref() {
@@ -86,7 +46,7 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 Ok(ExpNode::Cond(cond.as_exp(sc)?, left.as_exp(sc)?, right.as_exp(sc)?).ptr())
             }
             TermNode::Abs(params, body) => {
-                let names = Names::new().collect(&params)?;
+                let names = Names::new().make(&params)?;
                 names.with_scope(sc, |s| {
                     Ok(ExpNode::Abs(params.as_pat(s)?, body.as_exp(s)?).ptr())
                 })
@@ -99,7 +59,7 @@ impl<'a> AsExp<'a> for &Term<'a> {
                     .into_iter()
                     .map(|(con, tpl, term)| {
                         let ctor = sc.ctor(&con.span)?;
-                        let names = Names::new().collect(&tpl)?;
+                        let names = Names::new().make(&tpl)?;
                         names.with_scope(sc, |s| {
                             let pat = tpl.as_pat(s)?;
                             let exp = term.as_exp(s)?;
@@ -110,7 +70,7 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 Ok(ExpNode::Case(cond, branches?).ptr())
             }
             TermNode::Let(kind, tpl, term, body) => {
-                let names = Names::new().collect(&tpl)?;
+                let names = Names::new().make(&tpl)?;
                 names.with_scope(sc, |s| {
                     let pat = tpl.as_pat(s)?;
                     let exp = term.as_exp(s)?;
@@ -141,9 +101,50 @@ where
     }
 }
 
+trait AsPat<'a> {
+    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat>;
+}
+
+impl<'a> AsPat<'a> for &Tpl<'a> {
+    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
+        match self.deref() {
+            TplNode::Var(var) => {
+                let idx = sc.var(&var.span)?;
+                Ok(PatNode::Var(idx).ptr())
+            }
+            TplNode::Empty => Ok(PatNode::Empty.ptr()),
+            TplNode::Seq(tpls) => tpls.iter().as_pat(sc),
+            TplNode::As(var, tpl) => {
+                let idx = sc.var(&var.span)?;
+                Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
+            }
+        }
+    }
+}
+
+impl<'a, I> AsPat<'a> for I
+where
+    I: Iterator,
+    <I as Iterator>::Item: AsPat<'a>,
+{
+    fn as_pat(mut self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
+        match self.next() {
+            None => Ok(PatNode::Empty.ptr()),
+            Some(init) => self.fold(init.as_pat(sc), |acc, item| {
+                Ok(PatNode::Pair(acc?, item.as_pat(sc)?).ptr())
+            }),
+        }
+    }
+}
+
+trait Introduce<'a> {
+    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()>;
+}
+
 impl<'a> Introduce<'a> for &TypeDef<'a> {
     fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
-        Ok(()) // todo
+        // todo: add ctors
+        Ok(())
     }
 }
 

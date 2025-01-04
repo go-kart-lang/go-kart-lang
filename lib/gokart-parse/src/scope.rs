@@ -5,7 +5,7 @@ use crate::{
 };
 use gokart_core::{Ctor, Var};
 use std::{
-    collections::{hash_set, HashMap, HashSet},
+    collections::{hash_map, HashMap},
     ops::Deref,
 };
 
@@ -58,41 +58,41 @@ impl<'a> NameTable<'a> {
 
 #[derive(Debug)]
 pub struct Names<'a> {
-    items: HashSet<Span<'a>>,
+    items: HashMap<&'a str, Span<'a>>,
 }
 
 impl<'a> Names<'a> {
     pub fn new() -> Self {
         Names {
-            items: HashSet::new(),
+            items: HashMap::new(),
         }
     }
 
     fn add(&mut self, item: &Span<'a>) -> LogicRes<'a, ()> {
-        match self.items.insert(*item) {
-            true => Ok(()),
-            false => Err(LogicErr::new(*item, "todo")),
+        match self.items.insert(item.fragment(), *item) {
+            None => Ok(()),
+            Some(_) => Err(LogicErr::new(*item, "todo")),
         }
     }
 
-    pub fn collect(mut self, tpl: &Tpl<'a>) -> LogicRes<'a, Self> {
+    pub fn make(mut self, tpl: &Tpl<'a>) -> LogicRes<'a, Self> {
         match tpl.deref() {
             TplNode::Var(name) => {
                 self.add(&name.span)?;
                 Ok(self)
             }
             TplNode::Empty => Ok(self),
-            TplNode::Seq(tpls) => tpls.iter().fold(Ok(self), |acc, tpl| acc?.collect(tpl)),
+            TplNode::Seq(tpls) => tpls.iter().fold(Ok(self), |acc, tpl| acc?.make(tpl)),
             TplNode::As(var, tpl) => {
                 self.add(&var.span)?;
-                self.collect(tpl)
+                self.make(tpl)
             }
         }
     }
 
     #[inline]
-    pub fn iter<'b>(&'b self) -> hash_set::Iter<'b, Span<'a>> {
-        self.items.iter()
+    pub fn iter<'b>(&'b self) -> hash_map::Values<'b, &'a str, Span<'a>> {
+        self.items.values()
     }
 
     #[inline]

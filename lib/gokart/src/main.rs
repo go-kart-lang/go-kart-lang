@@ -23,7 +23,7 @@ fn main() {
         let impl = \a b n -> 
             if n == 0 then a
             else impl b (a + b) (n - 1);
-        in let fib = \n -> impl 0 0 n;
+        in let fib = \n -> impl 0 1 n;
         in fib 50
     "#;
     let res = parse(input);
