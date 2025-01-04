@@ -303,3 +303,143 @@ pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseErr> {
 }
 
 // todo: tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::{TermNode, TplNode};
+
+    fn span(input: &str) -> Span {
+        Span::new(input)
+    }
+
+    #[test]
+    fn test_ident_parser_valid() {
+        let input = "valid_ident";
+        let result = ident(span(input));
+        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
+        let (_, name) = result.unwrap();
+        assert_eq!(name.val(), input);
+    }
+
+    #[test]
+    fn test_ident_parser_invalid() {
+        let input = "123invalid";
+        let result = ident(span(input));
+        assert!(result.is_err(), "Expected Err, got {:?}", result);
+    }
+
+    #[test]
+    fn test_udent_parser_valid() {
+        let input = "UpperLetterStart";
+        let result = udent(span(input));
+        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
+        let (_, name) = result.unwrap();
+        assert_eq!(name.val(), input);
+    }
+
+    #[test]
+    fn test_udent_parser_invalid() {
+        let input = "smallLetterStart";
+        let result = udent(span(input));
+        assert!(result.is_err(), "Expected Err, got {:?}", result);
+    }
+
+    #[test]
+    fn test_literal_parser_valid_int() {
+        let input = "42";
+        let result = lit(span(input));
+        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
+        let (_, literal) = result.unwrap();
+        match literal {
+            Lit::Int(value) => assert_eq!(value, 42),
+            _ => panic!("Expected Lit::Int, got {:?}", literal),
+        }
+    }
+
+    #[test]
+    fn test_let_term_parser() {
+        let input = "let x = 5; in x";
+        let result = let_term(span(input));
+        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
+        let (_, term) = result.unwrap();
+        match term.as_ref() {
+            TermNode::Let(let_kind, tpls, terms, body) => {
+                assert!(matches!(let_kind, LetKind::NonRec));
+
+                assert!(matches!(tpls.as_ref(), TplNode::Seq(x) if x.iter().len() == 1));
+                assert!(matches!(
+                    tpls.as_ref(),
+                    TplNode::Seq(x) if matches!(
+                        x.first().unwrap().as_ref(),
+                        TplNode::Var(x) if x.val() == "x"
+                    )
+                ));
+
+                assert!(matches!(terms.as_ref(), TermNode::Seq(x) if x.iter().len() == 1));
+                assert!(matches!(
+                    terms.as_ref(),
+                    TermNode::Seq(x) if matches!(
+                        x.first().unwrap().as_ref(),
+                        TermNode::Lit(x) if matches!(x, Lit::Int(5))
+                    )
+                ));
+
+                assert!(matches!(
+                    body.as_ref(),
+                    TermNode::Var(x) if x.val() == "x"
+                ));
+            }
+            _ => panic!("Expected Let TermNode, got {:?}", term),
+        }
+    }
+
+    #[test]
+    fn test_cond_parser() {
+        let input = "if someName == 123 then 1 else 0";
+        let result = cond(span(input));
+        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
+        let (_, term) = result.unwrap();
+        match term.as_ref() {
+            TermNode::Cond(cond, true_term, else_term) => {
+                assert!(matches!(cond.as_ref(), TermNode::Opr(left, opr, right) if
+                    matches!(left.as_ref(), TermNode::Var(x) if x.val() == "someName") &&
+                    opr.to_string() == "==" &&
+                    matches!(right.as_ref(), TermNode::Lit(x) if matches!(x, Lit::Int(123)))
+                ));
+
+                assert!(matches!(true_term.as_ref(), TermNode::Lit(x) if matches!(x, Lit::Int(1))));
+
+                assert!(matches!(else_term.as_ref(), TermNode::Lit(x) if matches!(x, Lit::Int(0))));
+            }
+            _ => panic!("Expected Cond TermNode, got {:?}", term),
+        }
+    }
+
+    #[test]
+    fn test_ast_parser_valid() {
+        let input = r#"
+            let impl = \a b n ->
+                if n == 0 then a
+                else impl b (a + b) (n - 1);
+            in let fib = \n -> impl 0 1 n;
+            in fib 50
+        "#;
+        let result = parse(input);
+        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
+        let ast = result.unwrap();
+        assert!(ast.defs.is_empty());
+        match ast.body.as_ref() {
+            TermNode::Let(let_kind, _tpls, _terms, _body) => {
+                assert!(matches!(let_kind, LetKind::NonRec)); // todo
+            }
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_ast_parser_invalid() {
+        let input = "data Maybe = Just Int |";
+        let result = parse(input);
+        assert!(result.is_err(), "Expected Err, got {:?}", result);
+    }
+}
