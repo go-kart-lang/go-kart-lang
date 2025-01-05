@@ -72,8 +72,6 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 })
             }
             TermNode::Case(body, branches) => {
-                // todo: check pat matches con
-
                 let body = body.as_exp(sc)?;
                 let branches = branches
                     .into_iter()
@@ -148,8 +146,10 @@ trait Introduce<'a> {
 
 impl<'a> Introduce<'a> for &TypeDef<'a> {
     fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
-        // todo: add ctors
-        Ok(())
+        self.cons.iter().fold(Ok(()), |acc, con| {
+            acc?;
+            sc.add_tag(&con.name.span)
+        })
     }
 }
 

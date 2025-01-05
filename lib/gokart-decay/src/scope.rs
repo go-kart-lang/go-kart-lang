@@ -146,4 +146,9 @@ impl<'a> Scope<'a> {
     pub fn tag(&self, s: &Span<'a>) -> LogicRes<'a, Tag> {
         self.tags.get(s)
     }
+
+    #[inline]
+    pub fn add_tag(&mut self, s: &Span<'a>) -> LogicRes<'a, ()> {
+        self.tags.push(s)
+    }
 }

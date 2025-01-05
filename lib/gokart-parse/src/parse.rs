@@ -119,6 +119,7 @@ fn at_term(i: Span) -> ParseRes<Term> {
     alt((
         map(lit, |x| TermNode::Lit(x).ptr()),
         map(ident, |x| TermNode::Var(x).ptr()),
+        con_term,
         wrap_term,
     ))(i)
 }
@@ -130,7 +131,7 @@ fn con_term(i: Span) -> ParseRes<Term> {
 }
 
 fn app_term(i: Span) -> ParseRes<Term> {
-    alt((con_term, app, at_term))(i)
+    alt((app, at_term))(i)
 }
 
 fn infix_term(i: Span) -> ParseRes<Term> {

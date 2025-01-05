@@ -6,5 +6,5 @@ members = [
     "lib/gokart-decay",
     # "lib/gokart-compile",
     # "lib/gokart-vm",
-    # "lib/gokart",
+    "lib/gokart",
 ]
