@@ -1,14 +1,14 @@
 use crate::{Int, Label, PrimOp, Tag};
 
 #[derive(Debug)]
-pub enum OpCode {
+pub enum GOpCode<L> {
     Acc(u32),
     Rest(u32),
     QuoteInt(Int), // todo (sys)
     Push,
     Swap,
     Prim(PrimOp),
-    Cur(Label),
+    Cur(L),
     Return,
     Clear,
     Cons,
@@ -16,8 +16,10 @@ pub enum OpCode {
     Pack(Tag),
     Skip,
     Stop,
-    Call(Label),
-    GotoFalse(Label),
-    Switch(Tag, Label),
-    Goto(Label),
+    Call(L),
+    GotoFalse(L),
+    Switch(Tag, L),
+    Goto(L),
 }
+
+pub type OpCode = GOpCode<Label>;

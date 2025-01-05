@@ -1,5 +1,8 @@
+use gokart_compile::Compiler;
+use gokart_core::Code;
 use gokart_decay::decay;
 use gokart_parse::parse;
+use gokart_vm::{State, Value, GC, VM};
 
 fn main() {
     // let input = r#"
@@ -24,11 +27,23 @@ fn main() {
         in fib 50
     "#;
 
-    let res = parse(input);
+    println!("{}", input);
 
+    let ast = parse(input);
+    // println!("{:?}", ast);
+
+    let exp = decay(ast.unwrap());
+    // println!("{:?}", exp);
+
+    let code = Compiler::compile(&exp.unwrap());
+    println!("{:?}", code);
+
+    let state = State::init_with(|h| h.alloc(Value::Empty));
+    let gc = GC::new(10_000);
+    let mut vm = VM::new(state, Code::from(code), gc);
+
+    vm.run();
+
+    let res = vm.cur_env();
     println!("{:?}", res);
-
-    let exp = decay(res.unwrap());
-
-    println!("{:?}", exp);
 }

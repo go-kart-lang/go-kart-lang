@@ -7,4 +7,5 @@ edition = "2021"
 gokart-core = { path = "../gokart-core" }
 gokart-parse = { path = "../gokart-parse" }
 gokart-decay = { path = "../gokart-decay" }
-# gokart-vm = { path = "../gokart-vm" }
+gokart-compile = { path = "../gokart-compile" }
+gokart-vm = { path = "../gokart-vm" }

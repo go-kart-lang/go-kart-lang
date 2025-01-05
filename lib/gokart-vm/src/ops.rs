@@ -1,4 +1,4 @@
-use gokart_core::{Int, OpCode, PrimOp};
+use gokart_core::{GOpCode, Int, OpCode, PrimOp};
 
 use crate::{state::State, value::Value};
 
@@ -9,7 +9,7 @@ pub trait Ops {
 impl Ops for OpCode {
     #[inline]
     fn execute(&self, state: &mut State) {
-        use OpCode::*;
+        use GOpCode::*;
 
         match *self {
             Acc(n) => {

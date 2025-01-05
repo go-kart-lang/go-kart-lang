@@ -8,4 +8,5 @@ mod vm;
 pub use gc::GC;
 pub use heap::Heap;
 pub use state::State;
-pub use vm::VM;
+pub use value::Value;
+pub use vm::VM; // todo

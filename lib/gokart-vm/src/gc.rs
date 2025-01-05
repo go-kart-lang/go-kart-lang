@@ -74,8 +74,8 @@ impl Trace for Value {
             Value::Int(_) => (),
             Value::Label(_) => (),
             Value::Pair(a, b) => {
-                vac.mark(a);
-                vac.mark(b);
+                vac.mark(*a);
+                vac.mark(*b);
             }
             Value::Tagged(_, r) => vac.mark(*r),
             Value::Closure(r, _) => vac.mark(*r),

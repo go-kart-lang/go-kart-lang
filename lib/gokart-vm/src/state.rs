@@ -5,7 +5,7 @@ use crate::{
 use core::slice;
 use gokart_core::Label;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct State {
     pub ip: Label,
     pub is_running: bool,

@@ -38,8 +38,8 @@ impl VM {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gokart_core::{Int, OpCode, PrimOp};
-    use OpCode::*;
+    use gokart_core::{GOpCode, Int, PrimOp};
+    use GOpCode::*;
 
     #[test]
     fn it_can_add_one_and_four() {
@@ -66,9 +66,9 @@ mod tests {
         let mut vm = VM::new(state, code, gc);
 
         vm.run();
-        let res = *vm.cur_env();
+        let res = vm.cur_env();
 
-        assert_eq!(Value::Int(5), res, "Expect Value::Int(5)");
+        assert_eq!(&Value::Int(5), res, "Expect Value::Int(5)");
     }
 
     fn even_program(n: Int, expected: Int) {

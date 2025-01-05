@@ -305,7 +305,6 @@ pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseErr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{TermNode, TplNode};
 
     fn span(input: &str) -> Span {
         Span::new(input)
