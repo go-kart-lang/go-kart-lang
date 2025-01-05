@@ -89,16 +89,23 @@ impl<'a> AsExp<'a> for &Term<'a> {
             }
             TermNode::Let(kind, tpl, term, body) => {
                 let names = Names::new().make(&tpl)?;
-                names.with_scope(sc, |s| {
-                    let pat = tpl.as_pat(s)?;
-                    let exp = term.as_exp(s)?;
-                    let body = body.as_exp(s)?;
-
-                    Ok(match kind {
-                        LetKind::NonRec => ExpNode::Let(pat, exp, body).ptr(),
-                        LetKind::Rec => ExpNode::Letrec(pat, exp, body).ptr(),
-                    })
-                })
+                match kind {
+                    LetKind::NonRec => {
+                        let body = body.as_exp(sc)?;
+                        let (pat, exp) = names.with_scope(sc, |s| {
+                            let pat = tpl.as_pat(s)?;
+                            let exp = term.as_exp(s)?;
+                            Ok((pat, exp))
+                        })?;
+                        Ok(ExpNode::Let(pat, exp, body).ptr())
+                    }
+                    LetKind::Rec => names.with_scope(sc, |s| {
+                        let pat = tpl.as_pat(s)?;
+                        let exp = term.as_exp(s)?;
+                        let body = body.as_exp(s)?;
+                        Ok(ExpNode::Letrec(pat, exp, body).ptr())
+                    }),
+                }
             }
         }
     }
