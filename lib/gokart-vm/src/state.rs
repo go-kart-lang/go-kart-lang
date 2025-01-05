@@ -1,8 +1,9 @@
+use crate::{
+    heap::Heap,
+    value::{Ref, Value},
+};
 use core::slice;
-
-use gokart_core::{Label, Ref, Value};
-
-use crate::heap::Heap;
+use gokart_core::Label;
 
 #[derive(Default)]
 pub struct State {

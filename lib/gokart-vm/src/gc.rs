@@ -1,8 +1,8 @@
+use crate::{
+    state::State,
+    value::{Ref, Value},
+};
 use std::collections::{HashSet, VecDeque};
-
-use gokart_core::{Ref, Value};
-
-use crate::state::State;
 
 pub struct GC {
     threshold: usize,
@@ -69,7 +69,7 @@ trait Trace {
 
 impl Trace for Value {
     fn trace(&self, vac: &mut Vacuum) {
-        match *self {
+        match self {
             Value::Empty => (),
             Value::Int(_) => (),
             Value::Label(_) => (),
@@ -77,9 +77,8 @@ impl Trace for Value {
                 vac.mark(a);
                 vac.mark(b);
             }
-            Value::Tagged(_, r) => vac.mark(r),
-            Value::Closure(r, _) => vac.mark(r),
-            Value::CClosure(_) => (),
+            Value::Tagged(_, r) => vac.mark(*r),
+            Value::Closure(r, _) => vac.mark(*r),
         }
     }
 }

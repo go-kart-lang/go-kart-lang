@@ -4,7 +4,7 @@ use crate::{Int, Label, PrimOp, Tag};
 pub enum OpCode {
     Acc(u32),
     Rest(u32),
-    QuoteInt(Int),
+    QuoteInt(Int), // todo (sys)
     Push,
     Swap,
     Prim(PrimOp),

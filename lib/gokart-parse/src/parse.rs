@@ -1,8 +1,11 @@
 use crate::{
-    ast::*,
     err::{ParseErr, ParseRes},
     lex::token,
-    token::{Span, Token, TokenKind},
+    token::{Token, TokenKind},
+};
+use gokart_core::{
+    Ast, Con, Def, InfixDef, InfixKind, LetKind, Lit, Name, Span, Term, TermNode, Tpl, TplNode,
+    TypeDef,
 };
 use nom::{
     branch::alt,
@@ -103,32 +106,27 @@ fn lit(i: Span) -> ParseRes<Lit> {
             Ok(val) => Ok((s, Lit::Int(val))),
             Err(e) => failure!(s, "Bad int literal: {}", e),
         },
-        (s, tok) if tok.kind == TokenKind::Double => todo!(),
+        (s, tok) if tok.kind == TokenKind::Double => match tok.span.fragment().parse::<f64>() {
+            Ok(val) => Ok((s, Lit::Double(val))),
+            Err(e) => failure!(s, "Bad double literal: {}", e),
+        },
         (s, tok) if tok.kind == TokenKind::Str => Ok((s, Lit::Str(tok.span.fragment()))),
         (s, tok) => error!(s, "Expect Literal but got {}", tok.kind.as_ref()),
-    }
-}
-
-fn var(i: Span) -> ParseRes<Name> {
-    match token(i)? {
-        (s, tok) if tok.kind == TokenKind::Ident => Ok((s, Name::new(tok.span))),
-        // (s, tok) if tok.kind == TokenKind::Udent => Ok((s, Name::new(tok.span))), // todo: ?
-        (s, tok) => error!(s, "Expect Var but got {}", tok.kind.as_ref()),
     }
 }
 
 fn at_term(i: Span) -> ParseRes<Term> {
     alt((
         map(lit, |x| TermNode::Lit(x).ptr()),
-        map(var, |x| TermNode::Var(x).ptr()),
+        map(ident, |x| TermNode::Var(x).ptr()),
         wrap_term,
     ))(i)
 }
 
 fn con_term(i: Span) -> ParseRes<Term> {
-    let res = tuple((udent, term));
+    let res = tuple((udent, many0(term)));
 
-    map(res, |(name, body)| TermNode::Con(name, body).ptr())(i)
+    map(res, |(name, terms)| TermNode::Con(name, terms).ptr())(i)
 }
 
 fn app_term(i: Span) -> ParseRes<Term> {
@@ -298,7 +296,7 @@ pub fn parse<'a>(input: &'a str) -> Result<Ast<'a>, ParseErr> {
         Ok((_, ast)) => Ok(ast),
         Err(nom::Err::Error(e)) => Err(e),
         Err(nom::Err::Failure(e)) => Err(e),
-        _ => Err(ParseErr::new(i, "Unknown error")), // todo
+        _ => Err(ParseErr::new(i, "Unknown error")),
     }
 }
 

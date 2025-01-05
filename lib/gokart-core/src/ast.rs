@@ -1,6 +1,6 @@
 use derive_new::new;
 
-use crate::token::Span;
+use crate::Span;
 
 #[derive(Debug)]
 pub enum InfixKind {
@@ -69,7 +69,7 @@ pub enum TermNode<'a> {
     Var(Name<'a>),
     Lit(Lit<'a>),
     Seq(Vec<Term<'a>>),
-    Con(Name<'a>, Term<'a>), // todo: !
+    Con(Name<'a>, Vec<Term<'a>>),
     Opr(Term<'a>, Span<'a>, Term<'a>),
     App(Term<'a>, Vec<Term<'a>>),
     Cond(Term<'a>, Term<'a>, Term<'a>),

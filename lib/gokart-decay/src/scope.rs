@@ -1,30 +1,30 @@
-use crate::{
-    ast::{Tpl, TplNode},
-    err::{LogicErr, LogicRes},
-    token::Span,
-};
-use gokart_core::{Ctor, Var};
+use crate::err::{LogicErr, LogicRes};
+use gokart_core::{Span, Tag, Tpl, TplNode, Var};
+use num_traits::NumAssign;
 use std::{
     collections::{hash_map, HashMap},
     ops::Deref,
 };
 
 #[derive(Debug)]
-pub struct NameTable<'a> {
-    items: HashMap<&'a str, Vec<usize>>,
-    cnt: usize,
+pub struct NameTable<'a, T> {
+    items: HashMap<&'a str, Vec<T>>,
+    cnt: T,
 }
 
-impl<'a> NameTable<'a> {
+impl<'a, T> NameTable<'a, T>
+where
+    T: NumAssign + Copy,
+{
     #[inline]
     pub fn new() -> Self {
         Self {
             items: HashMap::new(),
-            cnt: 0,
+            cnt: T::zero(),
         }
     }
 
-    pub fn get(&self, s: &Span<'a>) -> LogicRes<'a, usize> {
+    pub fn get(&self, s: &Span<'a>) -> LogicRes<'a, T> {
         let name = s.fragment();
         match self.items.get(name) {
             None => Err(LogicErr::new(*s, "todo")),
@@ -37,7 +37,7 @@ impl<'a> NameTable<'a> {
 
     pub fn push(&mut self, s: &Span<'a>) -> LogicRes<'a, ()> {
         let idx = self.cnt;
-        self.cnt += 1;
+        self.cnt += T::one();
         self.items
             .entry(s.fragment())
             .and_modify(|x| x.push(idx))
@@ -62,12 +62,14 @@ pub struct Names<'a> {
 }
 
 impl<'a> Names<'a> {
+    #[inline]
     pub fn new() -> Self {
         Names {
             items: HashMap::new(),
         }
     }
 
+    #[inline]
     fn add(&mut self, item: &Span<'a>) -> LogicRes<'a, ()> {
         match self.items.insert(item.fragment(), *item) {
             None => Ok(()),
@@ -108,8 +110,8 @@ impl<'a> Names<'a> {
 }
 
 pub struct Scope<'a> {
-    vars: NameTable<'a>,
-    ctors: NameTable<'a>,
+    vars: NameTable<'a, Var>,
+    tags: NameTable<'a, Tag>,
 }
 
 impl<'a> Scope<'a> {
@@ -117,7 +119,7 @@ impl<'a> Scope<'a> {
     pub fn new() -> Self {
         Self {
             vars: NameTable::new(),
-            ctors: NameTable::new(),
+            tags: NameTable::new(),
         }
     }
 
@@ -141,7 +143,7 @@ impl<'a> Scope<'a> {
     }
 
     #[inline]
-    pub fn ctor(&self, s: &Span<'a>) -> LogicRes<'a, Ctor> {
-        self.ctors.get(s)
+    pub fn tag(&self, s: &Span<'a>) -> LogicRes<'a, Tag> {
+        self.tags.get(s)
     }
 }

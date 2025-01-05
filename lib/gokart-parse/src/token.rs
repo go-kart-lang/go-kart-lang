@@ -1,7 +1,5 @@
-use nom_locate::LocatedSpan;
+use gokart_core::Span;
 use strum_macros::AsRefStr;
-
-pub type Span<'a> = LocatedSpan<&'a str>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Token<'a> {

@@ -1,6 +1,8 @@
-use crate::{Int, Label, Ref, Tag};
+use gokart_core::{Int, Label, Tag};
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub type Ref = u32;
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Value {
     Empty,
     Int(Int),
@@ -8,13 +10,12 @@ pub enum Value {
     Pair(Ref, Ref),
     Tagged(Tag, Ref),
     Closure(Ref, Label),
-    CClosure(Label),
 }
 
 impl Value {
-    pub fn as_pair(self) -> (Ref, Ref) {
+    pub fn as_seq(self) -> Vec<Ref> {
         match self {
-            Value::Pair(a, b) => (a, b),
+            Value::Seq(refs) => refs,
             _ => panic!("Expected Value::Pair"),
         }
     }

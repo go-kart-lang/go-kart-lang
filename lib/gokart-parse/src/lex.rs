@@ -1,3 +1,4 @@
+use gokart_core::Span;
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag, take_until, take_while},
@@ -8,7 +9,7 @@ use nom::{
 
 use crate::{
     err::ParseRes,
-    token::{Span, Token, TokenKind},
+    token::{Token, TokenKind},
 };
 
 fn single<'a>(val: &'static str, kind: TokenKind) -> impl Fn(Span<'a>) -> ParseRes<Token<'a>> {

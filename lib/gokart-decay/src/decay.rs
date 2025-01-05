@@ -1,13 +1,30 @@
 use crate::{
-    ast::*,
     err::{LogicErr, LogicRes},
     scope::{Names, Scope},
 };
-use gokart_core::{Exp, ExpNode, Pat, PatNode, PrimOp, Sys};
+use gokart_core::{
+    Ast, Def, Exp, ExpNode, InfixDef, LetKind, Lit, Pat, PatNode, PrimOp, Sys, Term, TermNode, Tpl,
+    TplNode, TypeDef,
+};
 use std::ops::Deref;
 
 trait AsExp<'a> {
     fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp>;
+}
+
+impl<'a, 'b, T> AsExp<'a> for &'b Vec<T>
+where
+    &'b T: AsExp<'a>,
+{
+    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
+        let mut it = self.iter();
+        match it.next() {
+            Some(init) => it.fold(init.as_exp(sc), |acc, term| {
+                Ok(ExpNode::Pair(acc?, term.as_exp(sc)?).ptr())
+            }),
+            None => Ok(ExpNode::Empty.ptr()),
+        }
+    }
 }
 
 impl<'a> AsExp<'a> for &Term<'a> {
@@ -17,18 +34,21 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 let idx = sc.var(&var.span)?;
                 Ok(ExpNode::Var(idx).ptr())
             }
-            TermNode::Lit(lit) => Ok(match *lit {
-                Lit::Int(val) => ExpNode::Sys(Sys::IntLit(val)).ptr(),
-                Lit::Double(val) => todo!(),
-                Lit::Str(val) => todo!(),
-            }),
-            TermNode::Seq(terms) => terms.iter().as_exp(sc),
-            TermNode::Con(name, body) => {
-                // todo
-                let ctor = sc.ctor(&name.span)?;
-                Ok(ExpNode::Con(ctor, body.as_exp(sc)?).ptr())
+            TermNode::Lit(lit) => {
+                let sys = match *lit {
+                    Lit::Int(val) => Sys::IntLit(val),
+                    Lit::Double(val) => Sys::DoubleLit(val),
+                    Lit::Str(val) => Sys::StrLit(String::from(val)),
+                };
+                Ok(ExpNode::Sys(sys).ptr())
+            }
+            TermNode::Seq(terms) => terms.as_exp(sc),
+            TermNode::Con(name, terms) => {
+                let tag = sc.tag(&name.span)?;
+                Ok(ExpNode::Con(tag, terms.as_exp(sc)?).ptr())
             }
             TermNode::Opr(left, opr, right) => {
+                // todo
                 let op_kind = match PrimOp::try_from(*opr.fragment()) {
                     Ok(kind) => Ok(kind),
                     Err(m) => Err(LogicErr::new(*opr, m)),
@@ -51,14 +71,14 @@ impl<'a> AsExp<'a> for &Term<'a> {
                     Ok(ExpNode::Abs(params.as_pat(s)?, body.as_exp(s)?).ptr())
                 })
             }
-            TermNode::Case(cond, branches) => {
+            TermNode::Case(body, branches) => {
                 // todo: check pat matches con
 
-                let cond = cond.as_exp(sc)?;
+                let body = body.as_exp(sc)?;
                 let branches = branches
                     .into_iter()
                     .map(|(con, tpl, term)| {
-                        let ctor = sc.ctor(&con.span)?;
+                        let ctor = sc.tag(&con.span)?;
                         let names = Names::new().make(&tpl)?;
                         names.with_scope(sc, |s| {
                             let pat = tpl.as_pat(s)?;
@@ -66,8 +86,8 @@ impl<'a> AsExp<'a> for &Term<'a> {
                             Ok((ctor, pat, exp))
                         })
                     })
-                    .collect::<LogicRes<Vec<_>>>();
-                Ok(ExpNode::Case(cond, branches?).ptr())
+                    .collect::<LogicRes<Vec<_>>>()?;
+                Ok(ExpNode::Case(body, branches).ptr())
             }
             TermNode::Let(kind, tpl, term, body) => {
                 let names = Names::new().make(&tpl)?;
@@ -86,23 +106,23 @@ impl<'a> AsExp<'a> for &Term<'a> {
     }
 }
 
-impl<'a, I> AsExp<'a> for I
-where
-    I: Iterator,
-    <I as Iterator>::Item: AsExp<'a>,
-{
-    fn as_exp(mut self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        match self.next() {
-            None => Ok(ExpNode::Empty.ptr()),
-            Some(init) => self.fold(init.as_exp(sc), |acc, item| {
-                Ok(ExpNode::Pair(acc?, item.as_exp(sc)?).ptr())
-            }),
-        }
-    }
-}
-
 trait AsPat<'a> {
     fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat>;
+}
+
+impl<'a, 'b, T> AsPat<'a> for &'b Vec<T>
+where
+    &'b T: AsPat<'a>,
+{
+    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
+        let mut it = self.iter();
+        match it.next() {
+            Some(init) => it.fold(init.as_pat(sc), |acc, tpl| {
+                Ok(PatNode::Pair(acc?, tpl.as_pat(sc)?).ptr())
+            }),
+            None => Ok(PatNode::Empty.ptr()),
+        }
+    }
 }
 
 impl<'a> AsPat<'a> for &Tpl<'a> {
@@ -113,26 +133,11 @@ impl<'a> AsPat<'a> for &Tpl<'a> {
                 Ok(PatNode::Var(idx).ptr())
             }
             TplNode::Empty => Ok(PatNode::Empty.ptr()),
-            TplNode::Seq(tpls) => tpls.iter().as_pat(sc),
+            TplNode::Seq(tpls) => tpls.as_pat(sc),
             TplNode::As(var, tpl) => {
                 let idx = sc.var(&var.span)?;
                 Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
             }
-        }
-    }
-}
-
-impl<'a, I> AsPat<'a> for I
-where
-    I: Iterator,
-    <I as Iterator>::Item: AsPat<'a>,
-{
-    fn as_pat(mut self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        match self.next() {
-            None => Ok(PatNode::Empty.ptr()),
-            Some(init) => self.fold(init.as_pat(sc), |acc, item| {
-                Ok(PatNode::Pair(acc?, item.as_pat(sc)?).ptr())
-            }),
         }
     }
 }
@@ -163,16 +168,11 @@ impl<'a> Introduce<'a> for &Def<'a> {
     }
 }
 
-impl<'a> AsExp<'a> for &Ast<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        for def in self.defs.iter() {
-            def.introduce(sc)?;
-        }
-        self.body.as_exp(sc)
-    }
-}
-
 pub fn decay<'a>(ast: Ast<'a>) -> LogicRes<'a, Exp> {
     let mut sc = Scope::new();
-    ast.as_exp(&mut sc)
+
+    for def in ast.defs.iter() {
+        def.introduce(&mut sc)?;
+    }
+    ast.body.as_exp(&mut sc)
 }

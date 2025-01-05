@@ -1,6 +1,7 @@
-use gokart_core::{Code, Value};
+use gokart_core::Code;
 
 use crate::ops::Ops;
+use crate::value::Value;
 use crate::{state::State, GC};
 
 pub struct VM {
@@ -111,10 +112,10 @@ mod tests {
         let mut vm = VM::new(state, code, gc);
 
         vm.run();
-        let res = *vm.cur_env();
+        let res = vm.cur_env();
 
         assert_eq!(
-            Value::Int(expected),
+            &Value::Int(expected),
             res,
             "is_even({n}) = {res:?} (expected {expected})",
         )

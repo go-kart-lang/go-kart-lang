@@ -1,6 +1,6 @@
-use gokart_core::{Int, OpCode, PrimOp, Value};
+use gokart_core::{Int, OpCode, PrimOp};
 
-use crate::state::State;
+use crate::{state::State, value::Value};
 
 pub trait Ops {
     fn execute(&self, state: &mut State);
@@ -10,6 +10,7 @@ impl Ops for OpCode {
     #[inline]
     fn execute(&self, state: &mut State) {
         use OpCode::*;
+
         match *self {
             Acc(n) => {
                 for _ in 0..n {

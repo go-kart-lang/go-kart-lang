@@ -1,6 +1,5 @@
+use crate::value::{Ref, Value};
 use std::{collections::HashMap, ops};
-
-use gokart_core::{Ref, Value};
 
 #[derive(Default, Debug)]
 pub struct Heap {

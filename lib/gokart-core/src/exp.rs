@@ -1,25 +1,26 @@
-use crate::{Int, PrimOp};
+use crate::{Double, Int, PrimOp, Str, Tag};
 
-pub type Var = usize;
-pub type Ctor = usize;
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Sys {
     IntLit(Int),
+    DoubleLit(Double),
+    StrLit(Str),
     PrimOp(Exp, PrimOp, Exp),
-} // TODO: StrLit, DoubleLit, etc
+}
 
-#[derive(Debug, Clone)]
+pub type Var = usize;
+
+#[derive(Debug)]
 pub enum ExpNode {
     Var(Var),
     Sys(Sys),
     Empty,
     Pair(Exp, Exp),
-    Con(Ctor, Exp),
+    Con(Tag, Exp),
     App(Exp, Exp),
     Abs(Pat, Exp),
     Cond(Exp, Exp, Exp),
-    Case(Exp, Vec<(Ctor, Pat, Exp)>),
+    Case(Exp, Vec<(Tag, Pat, Exp)>),
     Let(Pat, Exp, Exp),
     Letrec(Pat, Exp, Exp),
 }
@@ -30,7 +31,7 @@ impl ExpNode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum PatNode {
     Var(Var),
     Empty,
