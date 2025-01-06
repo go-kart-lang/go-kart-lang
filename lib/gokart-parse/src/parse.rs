@@ -100,6 +100,16 @@ fn wrap_term(i: Span) -> ParseRes<Term> {
     map(res, |(_, term, _)| term)(i)
 }
 
+fn seq_term(i: Span) -> ParseRes<Term> {
+    let res = tuple((
+        expect(TokenKind::LParen),
+        separated_list1(expect(TokenKind::Comma), term),
+        expect(TokenKind::RParen),
+    ));
+
+    map(res, |(_, terms, _)| TermNode::Seq(terms).ptr())(i)
+}
+
 fn lit(i: Span) -> ParseRes<Lit> {
     match token(i)? {
         (s, tok) if tok.kind == TokenKind::Int => match tok.span.fragment().parse::<i64>() {
@@ -121,6 +131,7 @@ fn at_term(i: Span) -> ParseRes<Term> {
         map(ident, |x| TermNode::Var(x).ptr()),
         con_term,
         wrap_term,
+        seq_term,
     ))(i)
 }
 

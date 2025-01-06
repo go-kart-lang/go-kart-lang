@@ -26,8 +26,9 @@ fn main() {
         infixl + 5
 
         letrec
-            x = Cons 5 (Cons 55 Nil);
-        in x
+            x = (22, 44, 66);
+            y = (1, 2);
+        in y
     "#;
 
     // let input = r#"
