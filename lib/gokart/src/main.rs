@@ -11,7 +11,7 @@ fn main() {
 
     //     infixl + 5
 
-    //     let
+    //     letrec
     //         headOption = \x -> case x of
     //             | Nil () -> None;
     //             | Cons (x, _) -> Some x;
@@ -20,23 +20,34 @@ fn main() {
     // "#;
 
     let input = r#"
-        letrec impl = \a b n ->
-            if n == 0 then a
-            else impl b (a + b) (n - 1);
-        in letrec fib = \n -> impl 0 1 n;
-        in fib 20
+        data IntList = Nil | Cons Int IntList
+        data Option = None | Some Int
+
+        infixl + 5
+
+        letrec
+            x = Cons 5 (Cons 55 Nil);
+        in x
     "#;
+
+    // let input = r#"
+    //     letrec impl = \a b n ->
+    //         if n == 0 then a
+    //         else impl b (a + b) (n - 1);
+    //     in letrec fib = \n -> impl 0 1 n;
+    //     in fib 50
+    // "#;
 
     println!("{}", input);
 
     let ast = parse(input);
-    // println!("{:?}", ast);
+    println!("{:?}", ast);
 
     let exp = decay(ast.unwrap());
-    // println!("{:?}", exp);
+    println!("{:?}", exp);
 
     let code = Compiler::compile(&exp.unwrap());
-    // println!("{:?}", code);
+    println!("{:?}", code);
 
     let state = State::init_with(|h| h.alloc(Value::Empty));
     let gc = GC::new(10_000);

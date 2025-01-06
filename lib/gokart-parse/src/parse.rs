@@ -125,7 +125,7 @@ fn at_term(i: Span) -> ParseRes<Term> {
 }
 
 fn con_term(i: Span) -> ParseRes<Term> {
-    let res = tuple((udent, many0(term)));
+    let res = tuple((udent, many0(at_term)));
 
     map(res, |(name, terms)| TermNode::Con(name, terms).ptr())(i)
 }
