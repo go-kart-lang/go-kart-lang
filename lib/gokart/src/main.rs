@@ -24,7 +24,7 @@ fn main() {
             if n == 0 then a
             else impl b (a + b) (n - 1);
         in letrec fib = \n -> impl 0 1 n;
-        in fib 50
+        in fib 20
     "#;
 
     println!("{}", input);
@@ -36,7 +36,7 @@ fn main() {
     // println!("{:?}", exp);
 
     let code = Compiler::compile(&exp.unwrap());
-    println!("{:?}", code);
+    // println!("{:?}", code);
 
     let state = State::init_with(|h| h.alloc(Value::Empty));
     let gc = GC::new(10_000);

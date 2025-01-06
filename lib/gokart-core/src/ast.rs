@@ -73,7 +73,7 @@ pub enum TermNode<'a> {
     Opr(Term<'a>, Span<'a>, Term<'a>),
     App(Term<'a>, Vec<Term<'a>>),
     Cond(Term<'a>, Term<'a>, Term<'a>),
-    Abs(Tpl<'a>, Term<'a>),
+    Abs(Vec<Name<'a>>, Term<'a>),
     Case(Term<'a>, Vec<(Name<'a>, Tpl<'a>, Term<'a>)>),
     Let(LetKind, Tpl<'a>, Term<'a>, Term<'a>),
 }

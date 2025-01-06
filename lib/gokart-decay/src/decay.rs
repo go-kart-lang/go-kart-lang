@@ -3,8 +3,8 @@ use crate::{
     scope::{Names, Scope},
 };
 use gokart_core::{
-    Ast, Def, Exp, ExpNode, InfixDef, LetKind, Lit, Pat, PatNode, PrimOp, Sys, Term, TermNode, Tpl,
-    TplNode, TypeDef,
+    Ast, Def, Exp, ExpNode, InfixDef, LetKind, Lit, Name, Pat, PatNode, PrimOp, Sys, Term,
+    TermNode, Tpl, TplNode, TypeDef,
 };
 use std::ops::Deref;
 
@@ -66,9 +66,11 @@ impl<'a> AsExp<'a> for &Term<'a> {
                 Ok(ExpNode::Cond(cond.as_exp(sc)?, left.as_exp(sc)?, right.as_exp(sc)?).ptr())
             }
             TermNode::Abs(params, body) => {
-                let names = Names::new().make(&params)?;
+                let names = Names::from(&params)?;
                 names.with_scope(sc, |s| {
-                    Ok(ExpNode::Abs(params.as_pat(s)?, body.as_exp(s)?).ptr())
+                    params.iter().rfold(body.as_exp(s), |acc, param| {
+                        Ok(ExpNode::Abs(param.as_pat(s)?, acc?).ptr())
+                    })
                 })
             }
             TermNode::Case(body, branches) => {
@@ -133,10 +135,7 @@ where
 impl<'a> AsPat<'a> for &Tpl<'a> {
     fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
         match self.deref() {
-            TplNode::Var(var) => {
-                let idx = sc.var(&var.span)?;
-                Ok(PatNode::Var(idx).ptr())
-            }
+            TplNode::Var(var) => var.as_pat(sc),
             TplNode::Empty => Ok(PatNode::Empty.ptr()),
             TplNode::Seq(tpls) => tpls.as_pat(sc),
             TplNode::As(var, tpl) => {
@@ -144,6 +143,13 @@ impl<'a> AsPat<'a> for &Tpl<'a> {
                 Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
             }
         }
+    }
+}
+
+impl<'a> AsPat<'a> for &Name<'a> {
+    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
+        let idx = sc.var(&self.span)?;
+        Ok(PatNode::Var(idx).ptr())
     }
 }
 

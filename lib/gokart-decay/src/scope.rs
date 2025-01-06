@@ -1,5 +1,5 @@
 use crate::err::{LogicErr, LogicRes};
-use gokart_core::{Span, Tag, Tpl, TplNode, Var};
+use gokart_core::{Name, Span, Tag, Tpl, TplNode, Var};
 use num_traits::NumAssign;
 use std::{
     collections::{hash_map, HashMap},
@@ -64,9 +64,18 @@ pub struct Names<'a> {
 impl<'a> Names<'a> {
     #[inline]
     pub fn new() -> Self {
-        Names {
+        Self {
             items: HashMap::new(),
         }
+    }
+
+    #[inline]
+    pub fn from(params: &Vec<Name<'a>>) -> LogicRes<'a, Self> {
+        params.iter().fold(Ok(Self::new()), |acc, param| {
+            let mut names = acc?;
+            let _ = names.add(&param.span);
+            Ok(names)
+        })
     }
 
     #[inline]

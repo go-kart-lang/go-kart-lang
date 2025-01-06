@@ -162,13 +162,13 @@ fn app(i: Span) -> ParseRes<Term> {
 fn abs(i: Span) -> ParseRes<Term> {
     let res = tuple((
         expect(TokenKind::Backslash),
-        many1(param),
+        many1(ident),
         expect(TokenKind::Arrow),
         term,
     ));
 
     map(res, |(_, params, _, body)| {
-        TermNode::Abs(TplNode::Seq(params).ptr(), body).ptr()
+        TermNode::Abs(params, body).ptr()
     })(i)
 }
 
