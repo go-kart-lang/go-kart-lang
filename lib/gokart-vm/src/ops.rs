@@ -1,6 +1,7 @@
-use gokart_core::{GOpCode, Int, OpCode, PrimOp};
-
 use crate::{state::State, value::Value};
+use gokart_core::{GOpCode, Int, OpCode, PrimOp};
+use std::io;
+use std::io::Write;
 
 pub trait Ops {
     fn execute(&self, state: &mut State);
@@ -51,7 +52,15 @@ impl Ops for OpCode {
                     PrimOp::IntMinus => a - b,
                     PrimOp::IntDiv => a / b,
                     PrimOp::IntLe => Int::from(a < b),
+                    // PrimOp::IntLeq => Int::from(a <= b),
                     PrimOp::IntEq => Int::from(a == b),
+                    // PrimOp::IntNeq => Int::from(a != b),
+                    // PrimOp::IntGe => Int::from(a > b),
+                    // PrimOp::IntGeq => Int::from(a >= b),
+                    PrimOp::Print => {
+                        println!("GOKART OUTPUT: {}", b);
+                        b
+                    }
                 };
                 state.env = state.alloc(Value::Int(res));
                 state.ip += 1;
@@ -121,6 +130,15 @@ impl Ops for OpCode {
             }
             Goto(label) => {
                 state.ip = label;
+            }
+            Read => {
+                print!("GOKART INPUT: ");
+                io::stdout().flush().unwrap();
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).unwrap();
+                let val: Int = input.trim_end().parse().unwrap();
+                state.env = state.alloc(Value::Int(val));
+                state.ip += 1;
             }
         }
     }

@@ -1,11 +1,16 @@
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PrimOp {
     IntPlus,
     IntMul,
     IntMinus,
     IntDiv,
     IntLe,
+    // IntLeq,
     IntEq,
+    // IntNeq,
+    // IntGe,
+    // IntGeq,
+    Print,
 }
 
 impl<'a> TryFrom<&'a str> for PrimOp {
@@ -20,7 +25,12 @@ impl<'a> TryFrom<&'a str> for PrimOp {
             "-" => Ok(IntMinus),
             "/" => Ok(IntDiv),
             "<" => Ok(IntLe),
+            // "<=" => Ok(IntLeq),
             "==" => Ok(IntEq),
+            // "!=" => Ok(IntNeq),
+            // ">" => Ok(IntGe),
+            // ">=" => Ok(IntGeq),
+            "print" => Ok(Print),
             _ => Err(format!("Unknown PrimOp kind {}", value)), // todo
         }
     }

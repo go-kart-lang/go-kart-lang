@@ -149,6 +149,8 @@ impl Serializable for crate::prim_op::PrimOp {
             crate::PrimOp::IntDiv => 4,
             crate::PrimOp::IntLe => 5,
             crate::PrimOp::IntEq => 6,
+            crate::PrimOp::Print => 99,
+            _ => 666,
         };
         tag.serialize(w);
     }
@@ -168,6 +170,7 @@ impl Deserializable for crate::prim_op::PrimOp {
             4 => Ok(crate::PrimOp::IntDiv),
             5 => Ok(crate::PrimOp::IntLe),
             6 => Ok(crate::PrimOp::IntEq),
+            99 => Ok(crate::PrimOp::Print),
             _ => Err(Error::UnexpectedOpCode),
         }
     }
@@ -197,6 +200,7 @@ impl Serializable for crate::OpCode {
             crate::OpCode::GotoFalse(_) => 16,
             crate::OpCode::Switch(_, _) => 17,
             crate::OpCode::Goto(_) => 18,
+            crate::OpCode::Read => 19
         };
         tag.serialize(w);
 
@@ -222,6 +226,7 @@ impl Serializable for crate::OpCode {
             crate::OpCode::App => (),
             crate::OpCode::Skip => (),
             crate::OpCode::Stop => (),
+            crate::OpCode::Read => (),
         };
     }
 }
@@ -256,6 +261,7 @@ impl Deserializable for crate::OpCode {
                 Ok(crate::OpCode::Switch(a, b))
             }
             18 => usize::deserialize(r).map(crate::OpCode::Goto),
+            19 => Ok(crate::OpCode::Read),
             _ => Err(Error::UnexpectedOpCode),
         }
     }

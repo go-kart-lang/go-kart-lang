@@ -39,6 +39,7 @@ impl<'a> AsExp<'a> for &Term<'a> {
                     Lit::Int(val) => Sys::IntLit(val),
                     Lit::Double(val) => Sys::DoubleLit(val),
                     Lit::Str(val) => Sys::StrLit(String::from(val)),
+                    Lit::Read => Sys::Read,
                 };
                 Ok(ExpNode::Sys(sys).ptr())
             }

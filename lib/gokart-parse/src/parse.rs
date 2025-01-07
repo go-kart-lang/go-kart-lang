@@ -3,6 +3,7 @@ use crate::{
     lex::token,
     token::{Token, TokenKind},
 };
+use gokart_core::Lit::Int;
 use gokart_core::{
     Ast, Con, Def, InfixDef, InfixKind, LetKind, Lit, Name, Span, Term, TermNode, Tpl, TplNode,
     TypeDef,
@@ -121,6 +122,7 @@ fn lit(i: Span) -> ParseRes<Lit> {
             Err(e) => failure!(s, "Bad double literal: {}", e),
         },
         (s, tok) if tok.kind == TokenKind::Str => Ok((s, Lit::Str(tok.span.fragment()))),
+        (s, tok) if tok.kind == TokenKind::Read => Ok((s, Lit::Read)),
         (s, tok) => error!(s, "Expect Literal but got {}", tok.kind.as_ref()),
     }
 }
@@ -148,6 +150,14 @@ fn con_term(i: Span) -> ParseRes<Term> {
 
 fn app_term(i: Span) -> ParseRes<Term> {
     alt((app, at_term))(i)
+}
+
+fn print_term(i: Span) -> ParseRes<Term> {
+    let res = tuple((expect(TokenKind::Print), at_term));
+
+    map(res, |(op, var)| {
+        TermNode::Opr(Box::new(TermNode::Lit(Int(0))), Span::new("print"), var).ptr()
+    })(i)
 }
 
 fn infix_term(i: Span) -> ParseRes<Term> {
@@ -249,7 +259,7 @@ fn case(i: Span) -> ParseRes<Term> {
 }
 
 fn term(i: Span) -> ParseRes<Term> {
-    alt((infix_term, cond, case, let_term))(i)
+    alt((infix_term, cond, case, let_term, print_term))(i)
 }
 
 fn type_def(i: Span) -> ParseRes<TypeDef> {

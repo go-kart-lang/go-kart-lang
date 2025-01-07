@@ -43,11 +43,19 @@ fn main() {
     //     in fib 50
     // "#;
 
+    let code_with_io = r#"
+        letrec impl = \n res ->
+            if n == 0 then res
+            else impl (n - 1) (n * res);
+        in letrec factorial = \n -> impl n 1;
+        in print (factorial read)
+    "#;
+
     let start = Instant::now();
 
     {
         let pipe = Pipeline::new(10_000);
-        let res = pipe.run_from_string(TASK_1_CONTENT);
+        let res = pipe.run_from_string(code_with_io, false);
         println!("{:?}", res);
     }
 

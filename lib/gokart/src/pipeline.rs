@@ -13,21 +13,27 @@ impl Pipeline {
         Self { gc_size }
     }
 
-    pub fn run_from_string(&self, input: &str) -> Result<String, String> {
-        self.process(input)
+    pub fn run_from_string(&self, input: &str, debug: bool) -> Result<String, String> {
+        self.process(input, debug)
     }
 
-    fn process(&self, input: &str) -> Result<String, String> {
+    fn process(&self, input: &str, debug: bool) -> Result<String, String> {
         println!("{}", input);
 
         let ast = parse(input).map_err(|e| format!("Parse error: {:?}", e))?;
-        println!("\n{:?}\n", ast);
+        if debug {
+            println!("\n{:?}\n", ast);
+        }
 
         let exp = decay(ast).map_err(|e| format!("Decay error: {:?}", e))?;
-        println!("\n{:?}\n", exp);
+        if debug {
+            println!("\n{:?}\n", exp);
+        }
 
         let code = Compiler::compile(&exp);
-        println!("\n{:?}\n", code);
+        if debug {
+            println!("\n{:?}\n", code);
+        }
 
         let state = State::init_with(|h| h.alloc(Value::Empty));
         let gc = GC::new(self.gc_size);
@@ -36,7 +42,9 @@ impl Pipeline {
         vm.run();
 
         let res = vm.cur_env();
-        println!("\n{:?}\n", res);
+        if debug {
+            println!("\n{:?}\n", res);
+        }
 
         Ok(format!("Result: {:?}", res))
     }

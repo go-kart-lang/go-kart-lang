@@ -19,6 +19,7 @@ pub enum Lit<'a> {
     Int(i64),
     Double(f64),
     Str(&'a str),
+    Read,
 }
 
 #[derive(Debug, new)]
