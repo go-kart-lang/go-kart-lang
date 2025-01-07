@@ -28,7 +28,8 @@ fn main() {
         letrec
             x = (22, 44, 66);
             y = (1, 2);
-        in y
+            lst = Cons (5, Cons (4, Nil ()));
+        in lst
     "#;
 
     // let input = r#"

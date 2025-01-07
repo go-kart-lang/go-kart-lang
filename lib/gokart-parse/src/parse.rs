@@ -136,9 +136,14 @@ fn at_term(i: Span) -> ParseRes<Term> {
 }
 
 fn con_term(i: Span) -> ParseRes<Term> {
-    let res = tuple((udent, many0(at_term)));
+    let res = tuple((
+        udent,
+        expect(TokenKind::LParen),
+        separated_list0(expect(TokenKind::Comma), term),
+        expect(TokenKind::RParen),
+    ));
 
-    map(res, |(name, terms)| TermNode::Con(name, terms).ptr())(i)
+    map(res, |(name, _, terms, _)| TermNode::Con(name, terms).ptr())(i)
 }
 
 fn app_term(i: Span) -> ParseRes<Term> {
