@@ -1,6 +1,6 @@
 use crate::{Int, Label, PrimOp, Tag};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum GOpCode<L> {
     Acc(u32),
     Rest(u32),
@@ -20,6 +20,7 @@ pub enum GOpCode<L> {
     GotoFalse(L),
     Switch(Tag, L),
     Goto(L),
+    Read,
 }
 
 pub type OpCode = GOpCode<Label>;

@@ -5,6 +5,7 @@ pub enum Sys {
     IntLit(Int),
     DoubleLit(Double),
     StrLit(Str),
+    Read,
     PrimOp(Exp, PrimOp, Exp),
 }
 

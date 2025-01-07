@@ -136,6 +136,7 @@ impl<'a> Compiler<'a> {
                     OpCode::Switch(c, transform_postponed_label(&postponed_labels, l))
                 }
                 GOpCode::Goto(l) => OpCode::Goto(transform_postponed_label(&postponed_labels, l)),
+                GOpCode::Read => OpCode::Read,
             };
             result.push_back(newop);
         }
@@ -154,6 +155,9 @@ impl<'a> Compiler<'a> {
                 }
                 Sys::DoubleLit(_) => todo!(),
                 Sys::StrLit(_) => todo!(),
+                Sys::Read => {
+                    self.code.push_back(VOpCode::Read);
+                }
                 Sys::PrimOp(left, prim_op, right) => {
                     self.T(left, right, env);
                     self.code.push_back(VOpCode::Prim(*prim_op));

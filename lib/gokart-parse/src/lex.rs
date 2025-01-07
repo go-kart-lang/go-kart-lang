@@ -49,6 +49,8 @@ fn ident(i: Span) -> ParseRes<Token> {
             "infixl" => TokenKind::Infixl,
             "infixr" => TokenKind::Infixr,
             "as" => TokenKind::As,
+            "print" => TokenKind::Print,
+            "read" => TokenKind::Read,
             f if f.starts_with(|c: char| c.is_ascii_uppercase()) => TokenKind::Udent,
             _ => TokenKind::Ident,
         };

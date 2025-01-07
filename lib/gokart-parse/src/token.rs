@@ -39,6 +39,8 @@ pub enum TokenKind {
     Pipe,
     Arrow,
     Opr,
+    Read,
+    Print,
 }
 
 impl TokenKind {
