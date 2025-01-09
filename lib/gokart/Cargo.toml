@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 gokart-core = { path = "../gokart-core" }
 gokart-parse = { path = "../gokart-parse" }
-gokart-decay = { path = "../gokart-decay" }
-gokart-compile = { path = "../gokart-compile" }
-gokart-vm = { path = "../gokart-vm" }
+# gokart-decay = { path = "../gokart-decay" }
+# gokart-compile = { path = "../gokart-compile" }
+# gokart-vm = { path = "../gokart-vm" }
+miette = { version = "7.4.0", features = [ "fancy" ] }
