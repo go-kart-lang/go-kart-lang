@@ -1,41 +1,46 @@
-use gokart_core::Span;
+use crate::{
+    err::ParseRes,
+    token::{Token, TokenKind},
+};
+use gokart_core::Loc;
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag, take_until, take_while},
     character::complete::{char as chr, digit1, multispace0, satisfy},
     combinator::{map, opt, recognize},
-    sequence::{delimited, pair},
+    sequence::{pair, tuple},
 };
 
-use crate::{
-    err::ParseRes,
-    token::{Token, TokenKind},
-};
-
-fn single<'a>(val: &'static str, kind: TokenKind) -> impl Fn(Span<'a>) -> ParseRes<Token<'a>> {
-    move |i: Span| map(tag(val), |s| kind.at(s))(i)
+fn single<'a>(val: &'static str, kind: TokenKind) -> impl Fn(Loc<'a>) -> ParseRes<Token<'a>> {
+    move |i: Loc| map(tag(val), |s| kind.at(s))(i)
 }
 
-fn str_lit(i: Span) -> ParseRes<Token> {
+fn str_lit(i: Loc) -> ParseRes<Token> {
     let q = "\"";
-    let res = delimited(tag(q), take_until(q), tag(q));
+    let res = recognize(tuple((tag(q), take_until(q), tag(q))));
 
     map(res, |s| TokenKind::Str.at(s))(i)
 }
 
-fn num_lit(i: Span) -> ParseRes<Token> {
-    let res = recognize(pair(opt(chr('-')), digit1));
+fn int_lit(i: Loc) -> ParseRes<Token> {
+    let res = recognize(tuple((opt(chr('-')), digit1)));
 
     map(res, |s| TokenKind::Int.at(s))(i)
 }
 
-fn ident(i: Span) -> ParseRes<Token> {
+fn double_lit(i: Loc) -> ParseRes<Token> {
+    let res = recognize(tuple((opt(chr('-')), digit1, chr('.'), digit1)));
+
+    map(res, |s| TokenKind::Double.at(s))(i)
+}
+
+fn ident(i: Loc) -> ParseRes<Token> {
     let res = recognize(pair(
         satisfy(|c: char| c.is_ascii_alphabetic() || c == '_'),
         take_while(|c: char| c.is_ascii_alphanumeric() || c == '_'),
     ));
 
-    map(res, |s: Span| {
+    map(res, |s: Loc| {
         let kind = match *s.fragment() {
             "let" => TokenKind::Let,
             "letrec" => TokenKind::Letrec,
@@ -49,8 +54,6 @@ fn ident(i: Span) -> ParseRes<Token> {
             "infixl" => TokenKind::Infixl,
             "infixr" => TokenKind::Infixr,
             "as" => TokenKind::As,
-            "print" => TokenKind::Print,
-            "read" => TokenKind::Read,
             f if f.starts_with(|c: char| c.is_ascii_uppercase()) => TokenKind::Udent,
             _ => TokenKind::Ident,
         };
@@ -59,10 +62,10 @@ fn ident(i: Span) -> ParseRes<Token> {
     })(i)
 }
 
-fn opr(i: Span) -> ParseRes<Token> {
+fn opr(i: Loc) -> ParseRes<Token> {
     let res = is_a("!#$%&*+-./<=>?@\\^|~:");
 
-    map(res, |s: Span| {
+    map(res, |s: Loc| {
         let kind = match *s.fragment() {
             "=" => TokenKind::Assign,
             "\\" => TokenKind::Backslash,
@@ -75,7 +78,7 @@ fn opr(i: Span) -> ParseRes<Token> {
     })(i)
 }
 
-pub fn token(i: Span) -> ParseRes<Token> {
+pub fn token(i: Loc) -> ParseRes<Token> {
     let (i, _) = multispace0(i)?;
 
     alt((
@@ -88,7 +91,8 @@ pub fn token(i: Span) -> ParseRes<Token> {
         single(",", TokenKind::Comma),
         single(";", TokenKind::Semicolon),
         str_lit,
-        num_lit,
+        double_lit,
+        int_lit,
         ident,
         opr,
     ))(i)
@@ -97,29 +101,24 @@ pub fn token(i: Span) -> ParseRes<Token> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gokart_core::LocExt;
     use nom::{combinator::eof, multi::many0, sequence::tuple};
     use TokenKind::*;
 
-    fn token_kinds<'a>(i: Span) -> ParseRes<Vec<(TokenKind, usize, usize)>> {
+    fn token_kinds<'a>(i: Loc) -> ParseRes<Vec<(TokenKind, usize, usize)>> {
         let res = tuple((many0(token), multispace0, eof));
 
         map(res, |(tokens, _, _)| {
             tokens
                 .iter()
-                .map(|t| {
-                    (
-                        t.kind,
-                        t.span.location_offset(),
-                        t.span.location_offset() + t.span.fragment().len(),
-                    )
-                })
+                .map(|t| (t.kind, t.loc.begin(), t.loc.end()))
                 .collect()
         })(i)
     }
 
     macro_rules! assert_tokens {
         ( $input:expr, $expected:expr ) => {
-            let res = token_kinds(Span::new($input));
+            let res = token_kinds(Loc::new($input));
             assert!(res.is_ok());
             assert_eq!($expected, res.unwrap().1);
         };
@@ -127,11 +126,11 @@ mod tests {
 
     macro_rules! assert_lex_error {
         ( $input:expr, $offset:expr ) => {
-            let res = token_kinds(Span::new($input));
+            let res = token_kinds(Loc::new($input));
             assert!(res.is_err());
             match res.unwrap_err() {
-                nom::Err::Error(e) => assert_eq!($offset, e.offset()),
-                _ => assert!(false), // todo
+                nom::Err::Error(e) => assert_eq!($offset, e.begin()),
+                _ => assert!(false),
             }
         };
     }
@@ -152,15 +151,25 @@ mod tests {
     }
 
     #[test]
+    fn it_parses_double_literal() {
+        assert_tokens!("12.33", vec![(Double, 0, 5)]);
+    }
+
+    #[test]
+    fn it_parses_negative_double_literal() {
+        assert_tokens!("-1.3", vec![(Double, 0, 4)]);
+    }
+
+    #[test]
     fn it_parses_string_literal() {
-        assert_tokens!(r#""the string""#, vec![(Str, 1, 11)]);
+        assert_tokens!(r#""the string""#, vec![(Str, 0, 12)]);
     }
 
     #[test]
     fn it_parses_string_literals() {
         assert_tokens!(
             r#""the string" "and another  string""#,
-            vec![(Str, 1, 11), (Str, 14, 33)]
+            vec![(Str, 0, 12), (Str, 13, 34)]
         );
     }
 

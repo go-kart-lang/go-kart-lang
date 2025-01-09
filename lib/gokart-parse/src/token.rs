@@ -1,10 +1,10 @@
-use gokart_core::Span;
+use gokart_core::Loc;
 use strum_macros::AsRefStr;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Token<'a> {
     pub kind: TokenKind,
-    pub span: Span<'a>,
+    pub loc: Loc<'a>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, AsRefStr)]
@@ -39,15 +39,10 @@ pub enum TokenKind {
     Pipe,
     Arrow,
     Opr,
-    Read,
-    Print,
 }
 
 impl TokenKind {
-    pub fn at<'a>(self, s: Span<'a>) -> Token<'a> {
-        Token {
-            kind: self,
-            span: s,
-        }
+    pub fn at<'a>(self, loc: Loc<'a>) -> Token<'a> {
+        Token { kind: self, loc }
     }
 }
