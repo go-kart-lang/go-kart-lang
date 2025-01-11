@@ -105,7 +105,7 @@ mod tests {
     use nom::{combinator::eof, multi::many0, sequence::tuple};
     use TokenKind::*;
 
-    fn token_kinds<'a>(i: Loc) -> ParseRes<Vec<(TokenKind, usize, usize)>> {
+    fn token_kinds(i: Loc) -> ParseRes<Vec<(TokenKind, usize, usize)>> {
         let res = tuple((many0(token), multispace0, eof));
 
         map(res, |(tokens, _, _)| {

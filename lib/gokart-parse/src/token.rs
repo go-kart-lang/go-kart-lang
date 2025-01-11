@@ -42,7 +42,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    pub fn at<'a>(self, loc: Loc<'a>) -> Token<'a> {
+    pub fn at(self, loc: Loc) -> Token {
         Token { kind: self, loc }
     }
 }

@@ -63,7 +63,7 @@ impl ParseErr {
 impl<'a> ParseError<Loc<'a>> for ParseErr {
     #[inline]
     fn from_error_kind(i: Loc<'a>, kind: ErrorKind) -> Self {
-        ParseErr::NomError(i.as_span(), kind)
+        ParseErr::NomError(i.into_span(), kind)
     }
 
     #[inline]
@@ -73,7 +73,7 @@ impl<'a> ParseError<Loc<'a>> for ParseErr {
 
     #[inline]
     fn from_char(i: Loc<'a>, c: char) -> Self {
-        ParseErr::UnexpectedChar(i.as_span(), c)
+        ParseErr::UnexpectedChar(i.into_span(), c)
     }
 }
 

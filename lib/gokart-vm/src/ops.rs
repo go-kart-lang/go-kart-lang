@@ -26,10 +26,6 @@ impl Ops for OpCode {
                 }
                 state.ip += 1;
             }
-            QuoteInt(val) => {
-                state.env = state.alloc(Value::Int(val));
-                state.ip += 1;
-            }
             Push => {
                 state.stack.push(state.env);
                 state.ip += 1;
@@ -41,6 +37,11 @@ impl Ops for OpCode {
                 state.ip += 1;
             }
             Prim(op) => {
+                // todo
+                // QuoteInt(val) => {
+                //     state.env = state.alloc(Value::Int(val));
+                //     state.ip += 1;
+                // }
                 let a_ref = state.stack.pop();
                 let b_ref = state.env;
                 let a = state.heap[a_ref].as_int();

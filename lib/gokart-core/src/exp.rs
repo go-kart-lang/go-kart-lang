@@ -5,46 +5,49 @@ pub enum Sys {
     IntLit(Int),
     DoubleLit(Double),
     StrLit(Str),
-    Read,
-    PrimOp(Exp, PrimOp, Exp),
+    PrimOp(ExpPtr, PrimOp, ExpPtr),
+    Print,
+    ReadInt,
+    ReadDouble,
+    ReadStr,
 }
 
 pub type Var = usize;
 
 #[derive(Debug)]
-pub enum ExpNode {
+pub enum Exp {
+    Empty,
     Var(Var),
     Sys(Sys),
-    Empty,
-    Pair(Exp, Exp),
-    Con(Tag, Exp),
-    App(Exp, Exp),
-    Abs(Pat, Exp),
-    Cond(Exp, Exp, Exp),
-    Case(Exp, Vec<(Tag, Pat, Exp)>),
-    Let(Pat, Exp, Exp),
-    Letrec(Pat, Exp, Exp),
+    Pair(ExpPtr, ExpPtr),
+    Con(Tag, ExpPtr),
+    App(ExpPtr, ExpPtr),
+    Abs(Pat, ExpPtr),
+    Cond(ExpPtr, ExpPtr, ExpPtr),
+    Case(ExpPtr, Vec<(Tag, Pat, Exp)>),
+    Let(Pat, ExpPtr, ExpPtr),
+    Letrec(Pat, ExpPtr, ExpPtr),
 }
 
-impl ExpNode {
-    pub fn ptr(self) -> Exp {
+impl Exp {
+    pub fn ptr(self) -> ExpPtr {
         Box::new(self)
     }
 }
 
 #[derive(Debug)]
-pub enum PatNode {
-    Var(Var),
+pub enum Pat {
     Empty,
-    Pair(Pat, Pat),
-    Layer(Var, Pat),
+    Var(Var),
+    Pair(PatPtr, PatPtr),
+    Layer(Var, PatPtr),
 }
 
-impl PatNode {
-    pub fn ptr(self) -> Pat {
+impl Pat {
+    pub fn ptr(self) -> PatPtr {
         Box::new(self)
     }
 }
 
-pub type Pat = Box<PatNode>;
-pub type Exp = Box<ExpNode>;
+pub type PatPtr = Box<Pat>;
+pub type ExpPtr = Box<Exp>;
