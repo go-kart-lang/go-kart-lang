@@ -4,6 +4,7 @@ mod exp;
 mod op_code;
 mod prim_op;
 mod types;
+mod value;
 mod serialize;
 
 pub use ast::*;

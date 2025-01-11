@@ -52,6 +52,7 @@ impl Deserializable for u64 {
     }
 }
 
+
 impl Serializable for i64 {
     fn serialize<W>(&self, w: &mut W)
     where
@@ -242,6 +243,7 @@ impl Deserializable for crate::OpCode {
             1 => u32::deserialize(r).map(crate::OpCode::Acc),
             2 => u32::deserialize(r).map(crate::OpCode::Rest),
             3 => i64::deserialize(r).map(crate::OpCode::QuoteInt),
+            3 => i32::deserialize(r).map(crate::OpCode::QuoteInt),
             4 => Ok(crate::OpCode::Push),
             5 => Ok(crate::OpCode::Swap),
             6 => crate::PrimOp::deserialize(r).map(crate::OpCode::Prim),
@@ -251,12 +253,14 @@ impl Deserializable for crate::OpCode {
             10 => Ok(crate::OpCode::Cons),
             11 => Ok(crate::OpCode::App),
             12 => usize::deserialize(r).map(crate::OpCode::Pack),
+            12 => u32::deserialize(r).map(crate::OpCode::Pack),
             13 => Ok(crate::OpCode::Skip),
             14 => Ok(crate::OpCode::Stop),
             15 => usize::deserialize(r).map(crate::OpCode::Call),
             16 => usize::deserialize(r).map(crate::OpCode::GotoFalse),
             17 => {
                 let a = usize::deserialize(r)?;
+                let a = u32::deserialize(r)?;
                 let b = usize::deserialize(r)?;
                 Ok(crate::OpCode::Switch(a, b))
             }
