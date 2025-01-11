@@ -1,13 +1,13 @@
 use crate::{Term, UnOp};
 
 #[derive(Debug)]
-pub struct Predef<'a> {
+pub struct Predef<'a, 'b> {
     pub items: Vec<(&'static str, UnOp)>,
-    pub body: Term<'a>,
+    pub body: &'b Term<'a>,
 }
 
-impl<'a> Predef<'a> {
-    pub fn new(body: Term<'a>) -> Self {
+impl<'a, 'b> Predef<'a, 'b> {
+    pub fn new(body: &'b Term<'a>) -> Self {
         let items = Vec::from([
             ("print", UnOp::Print),
             ("read", UnOp::Read),

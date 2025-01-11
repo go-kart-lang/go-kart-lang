@@ -1,6 +1,6 @@
 use crate::{Double, Int, Label, Str, Tag};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NullOp {
     IntLit(Int),
     DoubleLit(Double),

@@ -1,3 +1,5 @@
+// todo
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     UnexpectedEof,
@@ -201,7 +203,7 @@ impl Serializable for crate::OpCode {
             crate::OpCode::GotoFalse(_) => 16,
             crate::OpCode::Switch(_, _) => 17,
             crate::OpCode::Goto(_) => 18,
-            crate::OpCode::Read => 19
+            crate::OpCode::Read => 19,
         };
         tag.serialize(w);
 
