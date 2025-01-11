@@ -1,16 +1,4 @@
-use crate::{Double, Int, PrimOp, Str, Tag};
-
-#[derive(Debug)]
-pub enum Sys {
-    IntLit(Int),
-    DoubleLit(Double),
-    StrLit(Str),
-    PrimOp(ExpPtr, PrimOp, ExpPtr),
-    Print,
-    ReadInt,
-    ReadDouble,
-    ReadStr,
-}
+use crate::{BinOp, NullOp, Tag, UnOp};
 
 pub type Var = usize;
 
@@ -18,7 +6,9 @@ pub type Var = usize;
 pub enum Exp {
     Empty,
     Var(Var),
-    Sys(Sys),
+    Sys0(NullOp),
+    Sys1(UnOp, ExpPtr),
+    Sys2(BinOp, ExpPtr, ExpPtr),
     Pair(ExpPtr, ExpPtr),
     Con(Tag, ExpPtr),
     App(ExpPtr, ExpPtr),

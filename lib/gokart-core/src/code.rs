@@ -17,6 +17,14 @@ where
     }
 }
 
+impl FromIterator<OpCode> for Code {
+    fn from_iter<T: IntoIterator<Item = OpCode>>(iter: T) -> Self {
+        Code {
+            data: Vec::from_iter(iter),
+        }
+    }
+}
+
 impl ops::Index<Label> for Code {
     type Output = OpCode;
 

@@ -86,3 +86,64 @@ impl<'a> Ctx<'a> {
         }
     }
 }
+
+// #[derive(Debug)]
+// pub struct Names<'a> {
+//     items: HashMap<&'a str, Span<'a>>,
+// }
+
+// impl<'a> Names<'a> {
+//     #[inline]
+//     pub fn new() -> Self {
+//         Self {
+//             items: HashMap::new(),
+//         }
+//     }
+
+//     #[inline]
+//     pub fn from(params: &Vec<Name<'a>>) -> LogicRes<'a, Self> {
+//         params.iter().fold(Ok(Self::new()), |acc, param| {
+//             let mut names = acc?;
+//             let _ = names.add(&param.span);
+//             Ok(names)
+//         })
+//     }
+
+//     #[inline]
+//     fn add(&mut self, item: &Span<'a>) -> LogicRes<'a, ()> {
+//         match self.items.insert(item.fragment(), *item) {
+//             None => Ok(()),
+//             Some(_) => Err(LogicErr::new(*item, "todo")),
+//         }
+//     }
+
+//     pub fn make(mut self, tpl: &Tpl<'a>) -> LogicRes<'a, Self> {
+//         match tpl.deref() {
+//             TplNode::Var(name) => {
+//                 self.add(&name.span)?;
+//                 Ok(self)
+//             }
+//             TplNode::Empty => Ok(self),
+//             TplNode::Seq(tpls) => tpls.iter().fold(Ok(self), |acc, tpl| acc?.make(tpl)),
+//             TplNode::As(var, tpl) => {
+//                 self.add(&var.span)?;
+//                 self.make(tpl)
+//             }
+//         }
+//     }
+
+//     #[inline]
+//     pub fn iter<'b>(&'b self) -> hash_map::Values<'b, &'a str, Span<'a>> {
+//         self.items.values()
+//     }
+
+//     #[inline]
+//     pub fn with_scope<F, T>(&self, sc: &mut Scope<'a>, f: F) -> LogicRes<'a, T>
+//     where
+//         F: Fn(&mut Scope<'a>) -> LogicRes<'a, T>,
+//     {
+//         sc.push_vars(self)?;
+//         let res = f(sc);
+//         sc.pop_vars(self)?;
+//         res
+//     }

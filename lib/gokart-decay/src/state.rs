@@ -1,4 +1,4 @@
-use gokart_core::Var;
+use gokart_core::{Tag, Var};
 
 #[derive(Debug)]
 struct Counter {
@@ -21,6 +21,7 @@ impl Counter {
 #[derive(Debug)]
 pub struct State {
     var_cnt: Counter,
+    tag_cnt: Counter,
 }
 
 impl State {
@@ -28,11 +29,17 @@ impl State {
     pub fn new() -> Self {
         Self {
             var_cnt: Counter::new(),
+            tag_cnt: Counter::new(),
         }
     }
 
     #[inline]
     pub fn next_var(&mut self) -> Var {
         self.var_cnt.next()
+    }
+
+    #[inline]
+    pub fn next_tag(&mut self) -> Tag {
+        self.tag_cnt.next()
     }
 }
