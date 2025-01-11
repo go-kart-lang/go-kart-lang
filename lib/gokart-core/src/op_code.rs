@@ -1,38 +1,49 @@
 use crate::{Double, Int, Label, Str, Tag};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum PrimOp {
+#[derive(Debug, PartialEq)]
+pub enum NullOp {
+    IntLit(Int),
+    DoubleLit(Double),
+    StrLit(Str),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnOp {
+    Print,
+    Read,
+    Int2Str,
+    Str2Int,
+    Double2Str,
+    Str2Double,
+    Double2Int,
+    Int2Double,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinOp {
     IntPlus,
     IntMul,
     IntMinus,
     IntDiv,
+    IntLt,
     IntLe,
-    IntLeq,
     IntEq,
-    IntNeq,
+    IntNe,
+    IntGt,
     IntGe,
-    IntGeq,
     DoublePlus,
     DoubleMul,
     DoubleMinus,
     DoubleDiv,
+    DoubleLt,
     DoubleLe,
-    DoubleLeq,
     DoubleEq,
-    DoubleNeq,
+    DoubleNe,
+    DoubleGt,
     DoubleGe,
-    DoubleGeq,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum SysOp {
-    IntLit(Int),
-    DoubleLit(Double),
-    StrLit(Str),
-    Print,
-    ReadInt,
-    ReadDouble,
-    ReadStr,
+    StrPlus,
+    StrEq,
+    StrNe,
 }
 
 #[derive(Debug, PartialEq)]
@@ -41,8 +52,9 @@ pub enum GOpCode<L> {
     Rest(u32),
     Push,
     Swap,
-    SysOp(SysOp),
-    PrimOp(PrimOp),
+    Sys0(NullOp),
+    Sys1(UnOp),
+    Sys2(BinOp),
     Cur(L),
     Return,
     Clear,

@@ -3,9 +3,9 @@ resolver = "2"
 members = [
     "lib/gokart-core",
     "lib/gokart-parse",
-    "lib/gokart-verify",
+    # "lib/gokart-verify",
     "lib/gokart-decay",
-    # "lib/gokart-compile",
+    "lib/gokart-compile",
     # "lib/gokart-vm",
     "lib/gokart",
 ]

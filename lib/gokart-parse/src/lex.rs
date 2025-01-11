@@ -105,77 +105,81 @@ mod tests {
     use nom::{combinator::eof, multi::many0, sequence::tuple};
     use TokenKind::*;
 
-    fn token_kinds(i: Loc) -> ParseRes<Vec<(TokenKind, usize, usize)>> {
+    type Tokens = Vec<(TokenKind, usize, usize)>;
+
+    fn lex_tokens(i: Loc) -> ParseRes<Tokens> {
         let res = tuple((many0(token), multispace0, eof));
 
         map(res, |(tokens, _, _)| {
             tokens
-                .iter()
+                .into_iter()
                 .map(|t| (t.kind, t.loc.begin(), t.loc.end()))
                 .collect()
         })(i)
     }
 
-    macro_rules! assert_tokens {
-        ( $input:expr, $expected:expr ) => {
-            let res = token_kinds(Loc::new($input));
-            assert!(res.is_ok());
-            assert_eq!($expected, res.unwrap().1);
-        };
+    fn assert_tokens(input: &str, expected: Tokens) {
+        let res = lex_tokens(Loc::new(input));
+
+        match res {
+            Ok((_, res)) => assert_eq!(expected, res),
+            Err(e) => panic!("Unexpected error: {e:?}"),
+        }
     }
 
-    macro_rules! assert_lex_error {
-        ( $input:expr, $offset:expr ) => {
-            let res = token_kinds(Loc::new($input));
-            assert!(res.is_err());
-            match res.unwrap_err() {
-                nom::Err::Error(e) => assert_eq!($offset, e.begin()),
-                _ => assert!(false),
-            }
-        };
-    }
+    fn assert_lex_error(input: &str, begin: usize) {
+        let res = lex_tokens(Loc::new(input));
 
-    #[test]
-    fn it_parses_int_literal() {
-        assert_tokens!("123", vec![(Int, 0, 3)]);
+        match res {
+            Ok(res) => panic!("This test should fail, but got {res:?}"),
+            Err(e) => match e {
+                nom::Err::Error(e) => assert_eq!(begin, e.begin()),
+                _ => panic!("Unexpected error: {e:?}"),
+            },
+        }
     }
 
     #[test]
-    fn it_parses_int_literals() {
-        assert_tokens!("123  89", vec![(Int, 0, 3), (Int, 5, 7)]);
+    fn ok_int_literal() {
+        assert_tokens("123", vec![(Int, 0, 3)]);
     }
 
     #[test]
-    fn it_parses_negative_int_literal() {
-        assert_tokens!("-123", vec![(Int, 0, 4)]);
+    fn ok_int_literals() {
+        assert_tokens("123  89", vec![(Int, 0, 3), (Int, 5, 7)]);
     }
 
     #[test]
-    fn it_parses_double_literal() {
-        assert_tokens!("12.33", vec![(Double, 0, 5)]);
+    fn ok_negative_int_literal() {
+        assert_tokens("-123", vec![(Int, 0, 4)]);
     }
 
     #[test]
-    fn it_parses_negative_double_literal() {
-        assert_tokens!("-1.3", vec![(Double, 0, 4)]);
+    fn ok_double_literal() {
+        assert_tokens("12.33", vec![(Double, 0, 5)]);
     }
 
     #[test]
-    fn it_parses_string_literal() {
-        assert_tokens!(r#""the string""#, vec![(Str, 0, 12)]);
+    fn ok_negative_double_literal() {
+        assert_tokens("-1.3", vec![(Double, 0, 4)]);
     }
 
     #[test]
-    fn it_parses_string_literals() {
-        assert_tokens!(
+    fn ok_string_literal() {
+        assert_tokens(r#""the string""#, vec![(Str, 0, 12)]);
+    }
+
+    #[test]
+    fn ok_string_literals() {
+        assert_tokens(
             r#""the string" "and another  string""#,
-            vec![(Str, 0, 12), (Str, 13, 34)]
+            vec![(Str, 0, 12), (Str, 13, 34)],
         );
     }
 
     #[test]
-    fn it_parses_identifiers() {
-        assert_tokens!(
+    fn ok_identifiers() {
+        assert_tokens(
             "let f Cons x in plus f p",
             vec![
                 (Let, 0, 3),
@@ -186,13 +190,13 @@ mod tests {
                 (Ident, 16, 20),
                 (Ident, 21, 22),
                 (Ident, 23, 24),
-            ]
+            ],
         );
     }
 
     #[test]
-    fn it_parses_operators() {
-        assert_tokens!(
+    fn ok_operators() {
+        assert_tokens(
             " if 14 = x+3",
             vec![
                 (If, 1, 3),
@@ -201,13 +205,13 @@ mod tests {
                 (Ident, 9, 10),
                 (Opr, 10, 11),
                 (Int, 11, 12),
-            ]
+            ],
         );
     }
 
     #[test]
-    fn it_parses_braces() {
-        assert_tokens!(
+    fn ok_braces() {
+        assert_tokens(
             "( { x} ][ (-42))",
             vec![
                 (LParen, 0, 1),
@@ -220,17 +224,17 @@ mod tests {
                 (Int, 11, 14),
                 (RParen, 14, 15),
                 (RParen, 15, 16),
-            ]
+            ],
         );
     }
 
     #[test]
-    fn it_handles_unclosed_quote_error() {
-        assert_lex_error!(r#"letrec x = "some string"#, 11);
+    fn err_unclosed_quote() {
+        assert_lex_error(r#"letrec x = "some string"#, 11);
     }
 
     #[test]
-    fn it_handles_unexpected_symbol_error() {
-        assert_lex_error!("-> привет мир", 3);
+    fn err_unexpected_symbol() {
+        assert_lex_error("-> привет мир", 3);
     }
 }

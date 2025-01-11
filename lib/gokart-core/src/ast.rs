@@ -1,4 +1,6 @@
-use crate::{Loc, Type};
+use std::ops::Deref;
+
+use crate::{Hint, Loc};
 use derive_new::new;
 
 #[derive(Debug, new)]
@@ -16,6 +18,12 @@ pub struct DoubleLit<'a> {
 #[derive(Debug, new)]
 pub struct StrLit<'a> {
     pub val: &'a str,
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug, new)]
+pub struct BoolLit<'a> {
+    pub val: bool,
     pub loc: Loc<'a>,
 }
 
@@ -54,6 +62,11 @@ pub struct EmptyTerm<'a> {
 }
 
 #[derive(Debug, new)]
+pub struct SysTerm<'a> {
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug, new)]
 pub struct PairTerm<'a> {
     pub left: TermPtr<'a>,
     pub right: TermPtr<'a>,
@@ -66,6 +79,25 @@ pub type VarName<'a> = &'a str;
 pub struct Name<'a> {
     pub val: VarName<'a>,
     pub loc: Loc<'a>,
+}
+
+// todo: remove
+// impl<'a> Name<'a> {
+//     pub fn predef(val: VarName<'a>) -> Self {
+//         Self {
+//             val,
+//             // because predifined names have no location in source code
+//             loc: Loc::new(""),
+//         }
+//     }
+// }
+
+impl<'a> Deref for Name<'a> {
+    type Target = VarName<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.val
+    }
 }
 
 #[derive(Debug, new)]
@@ -94,8 +126,8 @@ pub struct Opr<'a> {
     pub left: TermPtr<'a>,
     pub name: Name<'a>,
     pub right: TermPtr<'a>,
-    pub left_hint: Option<Type>,
-    pub right_hint: Option<Type>,
+    pub left_hint: Option<Hint>,
+    pub right_hint: Option<Hint>,
     pub loc: Loc<'a>,
 }
 

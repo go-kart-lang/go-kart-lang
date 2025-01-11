@@ -17,18 +17,14 @@ fn main() {
     //     in headOption Nil
     // "#;
 
-    // let input = r#"
-    //     data IntList = Nil | Cons Int IntList
-    //     data Option = None | Some Int
+    let input = r#"
+        data IntList = Nil | Cons Int IntList
+        data Option = None | Some Int
 
-    //     infixl + 5
-
-    //     letrec
-    //         x = (22, 44, 66);
-    //         y = (1, 2);
-    //         lst = Cons (5, Cons (4, Nil ()));
-    //     in lst
-    // "#;
+        letrec
+            x = 22;
+        in print (i2s x)
+    "#;
 
     // let input = r#"
     //     letrec impl = \a b n ->
@@ -58,13 +54,14 @@ fn main() {
     //     println!("===============================");
     //     println!("Execution time: {:.3?}", elapsed);
     //
-    let input = r#"
-let f = \x -> x;
-in println (f 2)
-        "#;
+
+    //     let input = r#"
+    // let f = \x -> x;
+    // in f (f 2)
+    //         "#;
 
     let res = parse(input).unwrap();
-    let exp = decay(&res);
+    let exp = decay(res);
 
     println!("{exp:?}");
 }
