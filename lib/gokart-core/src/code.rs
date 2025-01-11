@@ -1,9 +1,8 @@
+use crate::{Label, OpCode};
 use std::ops;
 
-use crate::{Label, OpCode};
-
 pub struct Code {
-    pub data: Vec<OpCode>,
+    data: Vec<OpCode>,
 }
 
 impl<T> From<T> for Code
@@ -23,6 +22,6 @@ impl ops::Index<Label> for Code {
 
     #[inline]
     fn index(&self, label: Label) -> &Self::Output {
-        &self.data[usize::from(label)]
+        &self.data[label]
     }
 }

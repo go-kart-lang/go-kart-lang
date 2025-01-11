@@ -6,6 +6,8 @@ pub type Ref = u32;
 pub enum Value {
     Empty,
     Int(Int),
+    Double(Double),
+    Str(Str),
     Label(Label),
     Pair(Ref, Ref),
     Tagged(Tag, Ref),
@@ -13,10 +15,10 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn as_pair(self) -> (Ref, Ref) {
+    pub fn as_int(self) -> Int {
         match self {
-            Value::Pair(a, b) => (a, b),
-            _ => panic!("Expected Value::Pair"),
+            Value::Int(int) => int,
+            _ => panic!("Expected Value::Int"),
         }
     }
 
@@ -27,17 +29,10 @@ impl Value {
         }
     }
 
-    pub fn as_closure(self) -> (Ref, Label) {
+    pub fn as_pair(self) -> (Ref, Ref) {
         match self {
-            Value::Closure(r, label) => (r, label),
-            _ => panic!("Expected Value::Closure"),
-        }
-    }
-
-    pub fn as_int(self) -> Int {
-        match self {
-            Value::Int(int) => int,
-            _ => panic!("Expected Value::Int"),
+            Value::Pair(a, b) => (a, b),
+            _ => panic!("Expected Value::Pair"),
         }
     }
 
@@ -45,6 +40,13 @@ impl Value {
         match self {
             Value::Tagged(tag, r) => (tag, r),
             _ => panic!("Expected Value::Tagged"),
+        }
+    }
+
+    pub fn as_closure(self) -> (Ref, Label) {
+        match self {
+            Value::Closure(r, label) => (r, label),
+            _ => panic!("Expected Value::Closure"),
         }
     }
 }

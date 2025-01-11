@@ -1,4 +1,4 @@
-use crate::Loc;
+use crate::{Loc, Type};
 use derive_new::new;
 
 #[derive(Debug, new)]
@@ -26,6 +26,16 @@ pub enum Lit<'a> {
     Str(StrLit<'a>),
 }
 
+impl<'a> Lit<'a> {
+    pub fn loc(&self) -> Loc<'a> {
+        match self {
+            Lit::Int(lit) => lit.loc,
+            Lit::Double(lit) => lit.loc,
+            Lit::Str(lit) => lit.loc,
+        }
+    }
+}
+
 #[derive(Debug, new)]
 pub struct Ast<'a> {
     pub defs: Vec<Def<'a>>,
@@ -39,8 +49,22 @@ pub enum Def<'a> {
 }
 
 #[derive(Debug, new)]
+pub struct EmptyTerm<'a> {
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug, new)]
+pub struct PairTerm<'a> {
+    pub left: TermPtr<'a>,
+    pub right: TermPtr<'a>,
+    pub loc: Loc<'a>,
+}
+
+pub type VarName<'a> = &'a str;
+
+#[derive(Debug, new)]
 pub struct Name<'a> {
-    pub val: &'a str,
+    pub val: VarName<'a>,
     pub loc: Loc<'a>,
 }
 
@@ -59,45 +83,54 @@ pub struct TypeDef<'a> {
 }
 
 #[derive(Debug, new)]
-pub struct SeqTerm<'a> {
-    pub items: Vec<Term<'a>>,
-    pub loc: Loc<'a>,
-}
-
-#[derive(Debug, new)]
 pub struct ConTerm<'a> {
     pub name: Name<'a>,
-    pub args: Vec<Term<'a>>,
+    pub body: TermPtr<'a>,
     pub loc: Loc<'a>,
 }
 
-#[derive(Debug, new)]
+#[derive(Debug)]
 pub struct Opr<'a> {
-    pub left: Term<'a>,
+    pub left: TermPtr<'a>,
     pub name: Name<'a>,
-    pub right: Term<'a>,
+    pub right: TermPtr<'a>,
+    pub left_hint: Option<Type>,
+    pub right_hint: Option<Type>,
     pub loc: Loc<'a>,
+}
+
+impl<'a> Opr<'a> {
+    pub fn new(left: TermPtr<'a>, name: Name<'a>, right: TermPtr<'a>, loc: Loc<'a>) -> Self {
+        Self {
+            left,
+            name,
+            right,
+            left_hint: None,
+            right_hint: None,
+            loc,
+        }
+    }
 }
 
 #[derive(Debug, new)]
 pub struct App<'a> {
-    pub head: Term<'a>,
-    pub children: Vec<Term<'a>>,
+    pub head: TermPtr<'a>,
+    pub body: TermPtr<'a>,
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug, new)]
 pub struct Cond<'a> {
-    pub cond: Term<'a>,
-    pub left: Term<'a>,
-    pub right: Term<'a>,
+    pub cond: TermPtr<'a>,
+    pub left: TermPtr<'a>,
+    pub right: TermPtr<'a>,
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug, new)]
 pub struct Abs<'a> {
-    pub args: Vec<Name<'a>>,
-    pub body: Term<'a>,
+    pub arg: Name<'a>,
+    pub body: TermPtr<'a>,
     pub loc: Loc<'a>,
 }
 
@@ -111,32 +144,33 @@ pub struct Branch<'a> {
 
 #[derive(Debug, new)]
 pub struct Case<'a> {
-    pub cond: Term<'a>,
+    pub cond: TermPtr<'a>,
     pub branches: Vec<Branch<'a>>,
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug, new)]
 pub struct Let<'a> {
-    pub tpls: Vec<Tpl<'a>>,
-    pub terms: Vec<Term<'a>>,
-    pub body: Term<'a>,
+    pub tpl: Tpl<'a>,
+    pub term: TermPtr<'a>,
+    pub body: TermPtr<'a>,
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug, new)]
 pub struct Letrec<'a> {
-    pub tpls: Vec<Tpl<'a>>,
-    pub terms: Vec<Term<'a>>,
-    pub body: Term<'a>,
+    pub tpl: Tpl<'a>,
+    pub term: TermPtr<'a>,
+    pub body: TermPtr<'a>,
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug)]
-pub enum TermNode<'a> {
+pub enum Term<'a> {
+    Empty(EmptyTerm<'a>),
+    Pair(PairTerm<'a>),
     Var(Name<'a>),
     Lit(Lit<'a>),
-    Seq(SeqTerm<'a>),
     Con(ConTerm<'a>),
     Opr(Opr<'a>),
     App(App<'a>),
@@ -147,9 +181,27 @@ pub enum TermNode<'a> {
     Letrec(Letrec<'a>),
 }
 
-impl<'a> TermNode<'a> {
-    pub fn ptr(self) -> Term<'a> {
+impl<'a> Term<'a> {
+    #[inline]
+    pub fn ptr(self) -> TermPtr<'a> {
         Box::new(self)
+    }
+
+    pub fn loc(&self) -> Loc<'a> {
+        match self {
+            Term::Empty(term) => term.loc,
+            Term::Pair(term) => term.loc,
+            Term::Var(term) => term.loc,
+            Term::Lit(term) => term.loc(),
+            Term::Con(term) => term.loc,
+            Term::Opr(term) => term.loc,
+            Term::App(term) => term.loc,
+            Term::Cond(term) => term.loc,
+            Term::Abs(term) => term.loc,
+            Term::Case(term) => term.loc,
+            Term::Let(term) => term.loc,
+            Term::Letrec(term) => term.loc,
+        }
     }
 }
 
@@ -162,22 +214,45 @@ pub struct SeqTpl<'a> {
 #[derive(Debug, new)]
 pub struct AsTpl<'a> {
     pub name: Name<'a>,
-    pub tpl: Tpl<'a>,
+    pub tpl: TplPtr<'a>,
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug, new)]
+pub struct PairTpl<'a> {
+    pub left: TplPtr<'a>,
+    pub right: TplPtr<'a>,
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug, new)]
+pub struct EmptyTpl<'a> {
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug)]
-pub enum TplNode<'a> {
+pub enum Tpl<'a> {
+    Empty(EmptyTpl<'a>),
     Var(Name<'a>),
-    Seq(SeqTpl<'a>),
+    Pair(PairTpl<'a>),
     As(AsTpl<'a>),
 }
 
-impl<'a> TplNode<'a> {
-    pub fn ptr(self) -> Tpl<'a> {
+impl<'a> Tpl<'a> {
+    #[inline]
+    pub fn ptr(self) -> TplPtr<'a> {
         Box::new(self)
+    }
+
+    pub fn loc(&self) -> Loc<'a> {
+        match self {
+            Tpl::Empty(tpl) => tpl.loc,
+            Tpl::Var(tpl) => tpl.loc,
+            Tpl::Pair(tpl) => tpl.loc,
+            Tpl::As(tpl) => tpl.loc,
+        }
     }
 }
 
-pub type Term<'a> = Box<TermNode<'a>>;
-pub type Tpl<'a> = Box<TplNode<'a>>;
+pub type TermPtr<'a> = Box<Term<'a>>;
+pub type TplPtr<'a> = Box<Tpl<'a>>;

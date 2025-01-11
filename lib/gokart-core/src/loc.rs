@@ -8,7 +8,8 @@ pub trait LocExt<'a> {
     fn begin(&self) -> usize;
     fn end(&self) -> usize;
     fn len(&self) -> usize;
-    fn as_span(self) -> Span;
+    fn is_empty(&self) -> bool;
+    fn into_span(self) -> Span;
 }
 
 impl<'a> LocExt<'a> for Loc<'a> {
@@ -33,7 +34,12 @@ impl<'a> LocExt<'a> for Loc<'a> {
     }
 
     #[inline]
-    fn as_span(self) -> Span {
+    fn is_empty(&self) -> bool {
+        self.val().is_empty()
+    }
+
+    #[inline]
+    fn into_span(self) -> Span {
         Span::new(SourceOffset::from(self.begin()), self.len())
     }
 }

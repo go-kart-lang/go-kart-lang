@@ -1,5 +1,6 @@
+use gokart_decay::decay;
 use gokart_parse::parse;
-use miette::Error;
+// use miette::Error;
 
 fn main() {
     // let input = r#"
@@ -58,21 +59,12 @@ fn main() {
     //     println!("Execution time: {:.3?}", elapsed);
     //
     let input = r#"
-let impl = \a b n ->
-    if n == 0 then a
-    else impl b (a + b) (n - 1);
-in let fib = \n -> impl 0 1 n;
-in fib 12.1
+let f = \x -> x;
+in println (f 2)
         "#;
 
-    let res = parse(input);
+    let res = parse(input).unwrap();
+    let exp = decay(&res);
 
-    match res {
-        Ok(ast) => println!("{ast:#?}"),
-        Err(e) => {
-            let e: Error = e.into();
-            let e = e.with_source_code(input);
-            eprintln!("{e:?}")
-        }
-    }
+    println!("{exp:?}");
 }

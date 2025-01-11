@@ -4,8 +4,9 @@ use crate::{
     token::{Token, TokenKind},
 };
 use gokart_core::{
-    Abs, App, AsTpl, Ast, Branch, Case, Con, ConTerm, Cond, Def, DoubleLit, IntLit, Let, Letrec,
-    Lit, Loc, LocExt, Name, Opr, SeqTerm, SeqTpl, StrLit, Term, TermNode, Tpl, TplNode, TypeDef,
+    Abs, App, AsTpl, Ast, Branch, Case, Con, ConTerm, Cond, Def, DoubleLit, EmptyTerm, EmptyTpl,
+    IntLit, Let, Letrec, Lit, Loc, LocExt, Name, Opr, PairTerm, PairTpl, StrLit, Term, Tpl,
+    TypeDef,
 };
 use nom::{
     branch::alt,
@@ -21,19 +22,23 @@ where
     P: Parser<Loc<'a>, O, E>,
 {
     move |i: Loc<'a>| {
-        let start = i.clone();
         let (rem, res) = p.parse(i)?;
-        let offset = start.offset(&rem);
-        let loc = start.take(offset);
+        let loc = i.take(i.offset(&rem));
         Ok((rem, (loc, res)))
     }
+}
+
+#[inline]
+fn pair_loc<'a>(i: Loc<'a>, first: Loc<'a>, second: Loc<'a>) -> Loc<'a> {
+    let (tail, _) = i.take_split(i.offset(&first));
+    tail.take(tail.offset(&second) + second.len())
 }
 
 #[inline]
 fn expect(kind: TokenKind) -> impl Fn(Loc) -> ParseRes<Token> {
     move |i: Loc| match token(i)? {
         (r, tok) if tok.kind == kind => Ok((r, tok)),
-        (_, tok) => ParseErr::UnexpectedToken(tok.loc.as_span(), kind, tok.kind).err(),
+        (_, tok) => ParseErr::UnexpectedToken(tok.loc.into_span(), kind, tok.kind).err(),
     }
 }
 
@@ -65,20 +70,26 @@ fn seq_term(i: Loc) -> ParseRes<Term> {
     ));
 
     map(with_loc(res), |(loc, (_, terms, _))| {
-        TermNode::Seq(SeqTerm::new(terms, loc)).ptr()
+        let mut it = terms.into_iter();
+        match it.next() {
+            Some(init) => it.fold(init, |acc, x| {
+                let (first, second) = (acc.loc(), x.loc());
+                Term::Pair(PairTerm::new(
+                    acc.ptr(),
+                    x.ptr(),
+                    pair_loc(i, first, second),
+                ))
+            }),
+            None => Term::Empty(EmptyTerm::new(loc)),
+        }
     })(i)
 }
 
 fn con_term(i: Loc) -> ParseRes<Term> {
-    let res = tuple((
-        udent,
-        expect(TokenKind::LParen),
-        separated_list0(expect(TokenKind::Comma), term),
-        expect(TokenKind::RParen),
-    ));
+    let res = tuple((udent, seq_term));
 
-    map(with_loc(res), |(loc, (name, _, terms, _))| {
-        TermNode::Con(ConTerm::new(name, terms, loc)).ptr()
+    map(with_loc(res), |(loc, (name, body))| {
+        Term::Con(ConTerm::new(name, body.ptr(), loc))
     })(i)
 }
 
@@ -87,7 +98,7 @@ fn int_lit(i: Loc) -> ParseRes<Lit> {
 
     match tok.loc.val().parse::<i64>() {
         Ok(x) => Ok((rem, Lit::Int(IntLit::new(x, tok.loc)))),
-        Err(e) => ParseErr::BadIntLiteral(tok.loc.as_span(), e).failure(),
+        Err(e) => ParseErr::BadIntLiteral(tok.loc.into_span(), e).failure(),
     }
 }
 
@@ -96,7 +107,7 @@ fn double_lit(i: Loc) -> ParseRes<Lit> {
 
     match tok.loc.val().parse::<f64>() {
         Ok(x) => Ok((rem, Lit::Double(DoubleLit::new(x, tok.loc)))),
-        Err(e) => ParseErr::BadDoubleLiteral(tok.loc.as_span(), e).failure(),
+        Err(e) => ParseErr::BadDoubleLiteral(tok.loc.into_span(), e).failure(),
     }
 }
 
@@ -115,8 +126,8 @@ fn lit(i: Loc) -> ParseRes<Lit> {
 
 fn at_term(i: Loc) -> ParseRes<Term> {
     alt((
-        map(lit, |x| TermNode::Lit(x).ptr()),
-        map(ident, |x| TermNode::Var(x).ptr()),
+        map(lit, Term::Lit),
+        map(ident, Term::Var),
         con_term,
         seq_term,
     ))(i)
@@ -130,16 +141,23 @@ fn abs(i: Loc) -> ParseRes<Term> {
         term,
     ));
 
-    map(with_loc(res), |(loc, (_, params, _, body))| {
-        TermNode::Abs(Abs::new(params, body, loc)).ptr()
+    map(res, |(_, params, _, body)| {
+        let second = body.loc();
+        params.into_iter().rfold(body, |acc, p| {
+            let loc = pair_loc(i, p.loc, second);
+            Term::Abs(Abs::new(p, acc.ptr(), loc))
+        })
     })(i)
 }
 
 fn app(i: Loc) -> ParseRes<Term> {
     let res = tuple((at_term, many1(at_term)));
 
-    map(with_loc(res), |(loc, (head, children))| {
-        TermNode::App(App::new(head, children, loc)).ptr()
+    map(res, |(head, children)| {
+        children.into_iter().fold(head, |acc, x| {
+            let loc = pair_loc(i, acc.loc(), x.loc());
+            Term::App(App::new(acc.ptr(), x.ptr(), loc))
+        })
     })(i)
 }
 
@@ -151,7 +169,7 @@ fn opr(i: Loc) -> ParseRes<Term> {
     let res = tuple((app_term, opr_name, infix_term));
 
     map(with_loc(res), |(loc, (left, name, right))| {
-        TermNode::Opr(Opr::new(left, name, right, loc)).ptr()
+        Term::Opr(Opr::new(left.ptr(), name, right.ptr(), loc))
     })(i)
 }
 
@@ -176,7 +194,7 @@ fn let_kind(i: Loc) -> ParseRes<LetKind> {
     match token(i)? {
         (r, tok) if tok.kind == TokenKind::Let => Ok((r, LetKind::NonRec)),
         (r, tok) if tok.kind == TokenKind::Letrec => Ok((r, LetKind::Rec)),
-        (_, tok) => ParseErr::UnexpectedToken(tok.loc.as_span(), TokenKind::Let, tok.kind).err(),
+        (_, tok) => ParseErr::UnexpectedToken(tok.loc.into_span(), TokenKind::Let, tok.kind).err(),
     }
 }
 
@@ -186,9 +204,24 @@ fn let_term(i: Loc) -> ParseRes<Term> {
     map(with_loc(res), |(loc, (kind, parts, _, body))| {
         let (tpls, terms): (Vec<_>, Vec<_>) = parts.into_iter().unzip();
 
+        let tpl = tpls
+            .into_iter()
+            .reduce(|a, b| {
+                let loc = b.loc();
+                Tpl::Pair(PairTpl::new(a.ptr(), b.ptr(), loc))
+            })
+            .unwrap(); // because we always have at least one let_part
+        let term = terms
+            .into_iter()
+            .reduce(|a, b| {
+                let loc = b.loc();
+                Term::Pair(PairTerm::new(a.ptr(), b.ptr(), loc))
+            })
+            .unwrap(); // because we always have at least one let_part
+
         match kind {
-            LetKind::NonRec => TermNode::Let(Let::new(tpls, terms, body, loc)).ptr(),
-            LetKind::Rec => TermNode::Letrec(Letrec::new(tpls, terms, body, loc)).ptr(),
+            LetKind::NonRec => Term::Let(Let::new(tpl, term.ptr(), body.ptr(), loc)),
+            LetKind::Rec => Term::Letrec(Letrec::new(tpl, term.ptr(), body.ptr(), loc)),
         }
     })(i)
 }
@@ -217,7 +250,7 @@ fn case(i: Loc) -> ParseRes<Term> {
     ));
 
     map(with_loc(res), |(loc, (_, cond, _, branches))| {
-        TermNode::Case(Case::new(cond, branches, loc)).ptr()
+        Term::Case(Case::new(cond.ptr(), branches, loc))
     })(i)
 }
 
@@ -232,7 +265,7 @@ fn cond(i: Loc) -> ParseRes<Term> {
     ));
 
     map(with_loc(res), |(loc, (_, cond, _, left, _, right))| {
-        TermNode::Cond(Cond::new(cond, left, right, loc)).ptr()
+        Term::Cond(Cond::new(cond.ptr(), left.ptr(), right.ptr(), loc))
     })(i)
 }
 
@@ -245,7 +278,7 @@ fn term(i: Loc) -> ParseRes<Term> {
 }
 
 fn param(i: Loc) -> ParseRes<Tpl> {
-    map(ident, |x| TplNode::Var(x).ptr())(i)
+    map(ident, Tpl::Var)(i)
 }
 
 fn seq_tpl(i: Loc) -> ParseRes<Tpl> {
@@ -256,7 +289,14 @@ fn seq_tpl(i: Loc) -> ParseRes<Tpl> {
     ));
 
     map(with_loc(res), |(loc, (_, tpls, _))| {
-        TplNode::Seq(SeqTpl::new(tpls, loc)).ptr()
+        let mut it = tpls.into_iter();
+        match it.next() {
+            Some(init) => it.fold(init, |acc, x| {
+                let (first, second) = (acc.loc(), x.loc());
+                Tpl::Pair(PairTpl::new(acc.ptr(), x.ptr(), pair_loc(i, first, second)))
+            }),
+            None => Tpl::Empty(EmptyTpl::new(loc)),
+        }
     })(i)
 }
 
@@ -268,7 +308,7 @@ fn as_tpl(i: Loc) -> ParseRes<Tpl> {
     let res = tuple((ident, expect(TokenKind::As), at_tpl));
 
     map(with_loc(res), |(loc, (name, _, tpl))| {
-        TplNode::As(AsTpl::new(name, tpl, loc)).ptr()
+        Tpl::As(AsTpl::new(name, tpl.ptr(), loc))
     })(i)
 }
 
@@ -297,7 +337,7 @@ fn type_def(i: Loc) -> ParseRes<TypeDef> {
 }
 
 fn def(i: Loc) -> ParseRes<Def> {
-    alt((map(type_def, |x| Def::TypeDef(x)),))(i)
+    alt((map(type_def, Def::TypeDef),))(i)
 }
 
 fn ast(i: Loc) -> ParseRes<Ast> {

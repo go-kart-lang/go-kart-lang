@@ -1,192 +1,159 @@
-use crate::{
-    err::{LogicErr, LogicRes},
-    scope::{Names, Scope},
-};
+use crate::{apply::Apply, as_pat::AsPat, ctx::Ctx, err::DecayRes, state::State};
 use gokart_core::{
-    Ast, Def, Exp, ExpNode, InfixDef, LetKind, Lit, Name, Pat, PatNode, PrimOp, Sys, Term,
-    TermNode, Tpl, TplNode, TypeDef,
+    Abs, App, Ast, Case, ConTerm, Cond, EmptyTerm, Exp, Let, Letrec, Lit, Name, Opr, PairTerm, Sys,
+    Term,
 };
-use std::ops::Deref;
 
-trait AsExp<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp>;
+trait Decay<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp>;
 }
 
-impl<'a, 'b, T> AsExp<'a> for &'b Vec<T>
-where
-    &'b T: AsExp<'a>,
-{
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        let mut it = self.iter();
-        match it.next() {
-            Some(init) => it.fold(init.as_exp(sc), |acc, term| {
-                Ok(ExpNode::Pair(acc?, term.as_exp(sc)?).ptr())
-            }),
-            None => Ok(ExpNode::Empty.ptr()),
-        }
+impl<'a> Decay<'a> for EmptyTerm<'a> {
+    fn decay(&self, _ctx: &Ctx<'a>, _st: &mut State) -> DecayRes<'a, Exp> {
+        Ok(Exp::Empty)
     }
 }
 
-impl<'a> AsExp<'a> for &Term<'a> {
-    fn as_exp(self, sc: &mut Scope<'a>) -> LogicRes<'a, Exp> {
-        match self.deref() {
-            TermNode::Var(var) => {
-                let idx = sc.var(&var.span)?;
-                Ok(ExpNode::Var(idx).ptr())
-            }
-            TermNode::Lit(lit) => {
-                let sys = match *lit {
-                    Lit::Int(val) => Sys::IntLit(val),
-                    Lit::Double(val) => Sys::DoubleLit(val),
-                    Lit::Str(val) => Sys::StrLit(String::from(val)),
-                    Lit::Read => Sys::Read,
-                };
-                Ok(ExpNode::Sys(sys).ptr())
-            }
-            TermNode::Seq(terms) => terms.as_exp(sc),
-            TermNode::Con(name, terms) => {
-                let tag = sc.tag(&name.span)?;
-                Ok(ExpNode::Con(tag, terms.as_exp(sc)?).ptr())
-            }
-            TermNode::Opr(left, opr, right) => {
-                // todo
-                let op_kind = match PrimOp::try_from(*opr.fragment()) {
-                    Ok(kind) => Ok(kind),
-                    Err(m) => Err(LogicErr::new(*opr, m)),
-                };
-                let prim_op = Sys::PrimOp(left.as_exp(sc)?, op_kind?, right.as_exp(sc)?);
-                Ok(ExpNode::Sys(prim_op).ptr())
-            }
-            TermNode::App(head, children) => {
-                let init = head.as_exp(sc);
-                children.iter().fold(init, |acc, child| {
-                    Ok(ExpNode::App(acc?, child.as_exp(sc)?).ptr())
-                })
-            }
-            TermNode::Cond(cond, left, right) => {
-                Ok(ExpNode::Cond(cond.as_exp(sc)?, left.as_exp(sc)?, right.as_exp(sc)?).ptr())
-            }
-            TermNode::Abs(params, body) => {
-                let names = Names::from(&params)?;
-                names.with_scope(sc, |s| {
-                    params.iter().rfold(body.as_exp(s), |acc, param| {
-                        Ok(ExpNode::Abs(param.as_pat(s)?, acc?).ptr())
-                    })
-                })
-            }
-            TermNode::Case(body, branches) => {
-                let body = body.as_exp(sc)?;
-                let branches = branches
-                    .into_iter()
-                    .map(|(con, tpl, term)| {
-                        let ctor = sc.tag(&con.span)?;
-                        let names = Names::new().make(&tpl)?;
-                        names.with_scope(sc, |s| {
-                            let pat = tpl.as_pat(s)?;
-                            let exp = term.as_exp(s)?;
-                            Ok((ctor, pat, exp))
-                        })
-                    })
-                    .collect::<LogicRes<Vec<_>>>()?;
-                Ok(ExpNode::Case(body, branches).ptr())
-            }
-            TermNode::Let(kind, tpl, term, body) => {
-                let names = Names::new().make(&tpl)?;
-                match kind {
-                    LetKind::NonRec => {
-                        let body = body.as_exp(sc)?;
-                        let (pat, exp) = names.with_scope(sc, |s| {
-                            let pat = tpl.as_pat(s)?;
-                            let exp = term.as_exp(s)?;
-                            Ok((pat, exp))
-                        })?;
-                        Ok(ExpNode::Let(pat, exp, body).ptr())
-                    }
-                    LetKind::Rec => names.with_scope(sc, |s| {
-                        let pat = tpl.as_pat(s)?;
-                        let exp = term.as_exp(s)?;
-                        let body = body.as_exp(s)?;
-                        Ok(ExpNode::Letrec(pat, exp, body).ptr())
-                    }),
-                }
-            }
-        }
+impl<'a> Decay<'a> for PairTerm<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        Ok(Exp::Pair(
+            self.left.decay(ctx, st)?.ptr(),
+            self.right.decay(ctx, st)?.ptr(),
+        ))
     }
 }
 
-trait AsPat<'a> {
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat>;
-}
-
-impl<'a, 'b, T> AsPat<'a> for &'b Vec<T>
-where
-    &'b T: AsPat<'a>,
-{
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        let mut it = self.iter();
-        match it.next() {
-            Some(init) => it.fold(init.as_pat(sc), |acc, tpl| {
-                Ok(PatNode::Pair(acc?, tpl.as_pat(sc)?).ptr())
-            }),
-            None => Ok(PatNode::Empty.ptr()),
-        }
+impl<'a> Decay<'a> for Name<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, _st: &mut State) -> DecayRes<'a, Exp> {
+        let idx = ctx.var(self)?;
+        Ok(Exp::Var(idx))
     }
 }
 
-impl<'a> AsPat<'a> for &Tpl<'a> {
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        match self.deref() {
-            TplNode::Var(var) => var.as_pat(sc),
-            TplNode::Empty => Ok(PatNode::Empty.ptr()),
-            TplNode::Seq(tpls) => tpls.as_pat(sc),
-            TplNode::As(var, tpl) => {
-                let idx = sc.var(&var.span)?;
-                Ok(PatNode::Layer(idx, tpl.as_pat(sc)?).ptr())
-            }
-        }
+impl<'a> Decay<'a> for Lit<'a> {
+    fn decay(&self, _ctx: &Ctx<'a>, _st: &mut State) -> DecayRes<'a, Exp> {
+        let sys = match self {
+            Lit::Int(lit) => Sys::IntLit(lit.val),
+            Lit::Double(lit) => Sys::DoubleLit(lit.val),
+            Lit::Str(lit) => Sys::StrLit(String::from(lit.val)),
+        };
+        Ok(Exp::Sys(sys))
     }
 }
 
-impl<'a> AsPat<'a> for &Name<'a> {
-    fn as_pat(self, sc: &mut Scope<'a>) -> LogicRes<'a, Pat> {
-        let idx = sc.var(&self.span)?;
-        Ok(PatNode::Var(idx).ptr())
+impl<'a> Decay<'a> for ConTerm<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        let tag = ctx.tag(&self.name)?;
+        Ok(Exp::Con(tag, self.body.decay(ctx, st)?.ptr()))
     }
 }
 
-trait Introduce<'a> {
-    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()>;
-}
-
-impl<'a> Introduce<'a> for &TypeDef<'a> {
-    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
-        self.cons.iter().fold(Ok(()), |acc, con| {
-            acc?;
-            sc.add_tag(&con.name.span)
-        })
+impl<'a> Decay<'a> for Opr<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        //                 let op_kind = match PrimOp::try_from(*opr.fragment()) {
+        //                     Ok(kind) => Ok(kind),
+        //                     Err(m) => Err(LogicErr::new(*opr, m)),
+        //                 };
+        //                 let prim_op = Sys::PrimOp(left.as_exp(sc)?, op_kind?, right.as_exp(sc)?);
+        //                 Ok(ExpNode::Sys(prim_op).ptr())
+        todo!()
     }
 }
 
-impl<'a> Introduce<'a> for &InfixDef<'a> {
-    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
-        Ok(()) // todo
+impl<'a> Decay<'a> for App<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        Ok(Exp::App(
+            self.head.decay(ctx, st)?.ptr(),
+            self.body.decay(ctx, st)?.ptr(),
+        ))
     }
 }
 
-impl<'a> Introduce<'a> for &Def<'a> {
-    fn introduce(self, sc: &mut Scope<'a>) -> LogicRes<'a, ()> {
+impl<'a> Decay<'a> for Cond<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        Ok(Exp::Cond(
+            self.cond.decay(ctx, st)?.ptr(),
+            self.left.decay(ctx, st)?.ptr(),
+            self.right.decay(ctx, st)?.ptr(),
+        ))
+    }
+}
+
+impl<'a> Decay<'a> for Abs<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        let ctx_ = ctx.push_var(&self.arg, st);
+        Ok(Exp::Abs(
+            self.arg.as_pat(&ctx_, st)?,
+            self.body.decay(&ctx_, st)?.ptr(),
+        ))
+    }
+}
+
+impl<'a> Decay<'a> for Case<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        let body = self.cond.decay(ctx, st)?;
+        let branches = self
+            .branches
+            .iter()
+            .map(|branch| {
+                let ctx_ = ctx.push_tpl(&branch.tpl, st);
+                let tag = ctx_.tag(&branch.con)?;
+                let pat = branch.tpl.as_pat(&ctx_, st)?;
+                let exp = branch.body.decay(&ctx_, st)?;
+
+                Ok((tag, pat, exp))
+            })
+            .collect::<DecayRes<'a, Vec<_>>>()?;
+
+        Ok(Exp::Case(body.ptr(), branches))
+    }
+}
+
+impl<'a> Decay<'a> for Let<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        let ctx_ = ctx.push_tpl(&self.tpl, st);
+        let pat = self.tpl.as_pat(&ctx_, st)?;
+        let exp = self.term.decay(ctx, st)?;
+        let body = self.body.decay(&ctx_, st)?;
+        Ok(Exp::Let(pat, exp.ptr(), body.ptr()))
+    }
+}
+
+impl<'a> Decay<'a> for Letrec<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
+        let ctx_ = ctx.push_tpl(&self.tpl, st);
+        let pat = self.tpl.as_pat(&ctx_, st)?;
+        let exp = self.term.decay(&ctx_, st)?;
+        let body = self.body.decay(&ctx_, st)?;
+        Ok(Exp::Letrec(pat, exp.ptr(), body.ptr()))
+    }
+}
+
+impl<'a> Decay<'a> for Term<'a> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> DecayRes<'a, Exp> {
         match self {
-            Def::TypeDef(type_def) => type_def.introduce(sc),
-            Def::InfixDef(infix_def) => infix_def.introduce(sc),
+            Term::Empty(term) => term.decay(ctx, st),
+            Term::Pair(term) => term.decay(ctx, st),
+            Term::Var(term) => term.decay(ctx, st),
+            Term::Lit(term) => term.decay(ctx, st),
+            Term::Con(term) => term.decay(ctx, st),
+            Term::Opr(term) => term.decay(ctx, st),
+            Term::App(term) => term.decay(ctx, st),
+            Term::Cond(term) => term.decay(ctx, st),
+            Term::Abs(term) => term.decay(ctx, st),
+            Term::Case(term) => term.decay(ctx, st),
+            Term::Let(term) => term.decay(ctx, st),
+            Term::Letrec(term) => term.decay(ctx, st),
         }
     }
 }
 
-pub fn decay<'a>(ast: Ast<'a>) -> LogicRes<'a, Exp> {
-    let mut sc = Scope::new();
+pub fn decay<'a>(ast: &Ast<'a>) -> DecayRes<'a, Exp> {
+    let mut st = State::new();
+    let mut ctx = Ctx::init_with(&mut st, ["println", "readInt", "readDouble", "readStr"]);
 
     for def in ast.defs.iter() {
-        def.introduce(&mut sc)?;
+        ctx = def.apply(ctx)?;
     }
-    ast.body.as_exp(&mut sc)
+    ast.body.decay(&ctx, &mut st)
 }
