@@ -7,17 +7,17 @@ use gokart_core::{
 };
 
 trait Decay<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp;
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp;
 }
 
 impl<'a> Decay<'a> for EmptyTerm<'a> {
-    fn decay(self, _ctx: &Ctx<'a>, _st: &mut State) -> Exp {
+    fn decay(&self, _ctx: &Ctx<'a>, _st: &mut State) -> Exp {
         Exp::Empty
     }
 }
 
 impl<'a> Decay<'a> for PairTerm<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         Exp::Pair(
             self.left.decay(ctx, st).ptr(),
             self.right.decay(ctx, st).ptr(),
@@ -26,14 +26,14 @@ impl<'a> Decay<'a> for PairTerm<'a> {
 }
 
 impl<'a> Decay<'a> for Name<'a> {
-    fn decay(self, ctx: &Ctx<'a>, _st: &mut State) -> Exp {
-        let idx = ctx.var(&self);
+    fn decay(&self, ctx: &Ctx<'a>, _st: &mut State) -> Exp {
+        let idx = ctx.var(self);
         Exp::Var(idx)
     }
 }
 
 impl<'a> Decay<'a> for Lit<'a> {
-    fn decay(self, _ctx: &Ctx<'a>, _st: &mut State) -> Exp {
+    fn decay(&self, _ctx: &Ctx<'a>, _st: &mut State) -> Exp {
         let null_op = match self {
             Lit::Int(lit) => NullOp::IntLit(lit.val),
             Lit::Double(lit) => NullOp::DoubleLit(lit.val),
@@ -44,14 +44,14 @@ impl<'a> Decay<'a> for Lit<'a> {
 }
 
 impl<'a> Decay<'a> for ConTerm<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         let tag = ctx.tag(&self.name);
         Exp::Con(tag, self.body.decay(ctx, st).ptr())
     }
 }
 
 impl<'a> Decay<'a> for Opr<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         // todo: use (type) hints
         // or (maybe) determine binop kind on verify step
         // and use Option<BinOp> field in Opr
@@ -80,7 +80,7 @@ impl<'a> Decay<'a> for Opr<'a> {
 }
 
 impl<'a> Decay<'a> for App<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         Exp::App(
             self.head.decay(ctx, st).ptr(),
             self.body.decay(ctx, st).ptr(),
@@ -89,7 +89,7 @@ impl<'a> Decay<'a> for App<'a> {
 }
 
 impl<'a> Decay<'a> for Cond<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         Exp::Cond(
             self.cond.decay(ctx, st).ptr(),
             self.left.decay(ctx, st).ptr(),
@@ -99,18 +99,18 @@ impl<'a> Decay<'a> for Cond<'a> {
 }
 
 impl<'a> Decay<'a> for Abs<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         let ctx_ = ctx.add_var(&self.arg, st);
         Exp::Abs(self.arg.as_pat(&ctx_, st), self.body.decay(&ctx_, st).ptr())
     }
 }
 
 impl<'a> Decay<'a> for Case<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         let body = self.cond.decay(ctx, st);
         let branches = self
             .branches
-            .into_iter()
+            .iter()
             .map(|branch| {
                 let ctx_ = ctx.add_tpl(&branch.tpl, st);
                 let tag = ctx_.tag(&branch.con);
@@ -126,7 +126,7 @@ impl<'a> Decay<'a> for Case<'a> {
 }
 
 impl<'a> Decay<'a> for Let<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         let ctx_ = ctx.add_tpl(&self.tpl, st);
         let pat = self.tpl.as_pat(&ctx_, st);
         let exp = self.term.decay(ctx, st);
@@ -136,7 +136,7 @@ impl<'a> Decay<'a> for Let<'a> {
 }
 
 impl<'a> Decay<'a> for Letrec<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         let ctx_ = ctx.add_tpl(&self.tpl, st);
         let pat = self.tpl.as_pat(&ctx_, st);
         let exp = self.term.decay(&ctx_, st);
@@ -145,9 +145,9 @@ impl<'a> Decay<'a> for Letrec<'a> {
     }
 }
 
-impl<'a> Decay<'a> for Predef<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
-        let (ctx_, pat, exp) = self.items.into_iter().fold(
+impl<'a, 'b> Decay<'a> for Predef<'a, 'b> {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+        let (ctx_, pat, exp) = self.items.iter().fold(
             (ctx.clone(), Pat::Empty, Exp::Empty),
             |(ctx_, pat, exp), (name, un_op)| {
                 let new_ctx = ctx_.add_var(name, st);
@@ -158,7 +158,7 @@ impl<'a> Decay<'a> for Predef<'a> {
                     exp.ptr(),
                     Exp::Abs(
                         Pat::Var(tmp_idx),
-                        Exp::Sys1(un_op, Exp::Var(tmp_idx).ptr()).ptr(),
+                        Exp::Sys1(*un_op, Exp::Var(tmp_idx).ptr()).ptr(),
                     )
                     .ptr(),
                 );
@@ -172,7 +172,7 @@ impl<'a> Decay<'a> for Predef<'a> {
 }
 
 impl<'a> Decay<'a> for Term<'a> {
-    fn decay(self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
+    fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         match self {
             Term::Empty(term) => term.decay(ctx, st),
             Term::Pair(term) => term.decay(ctx, st),
@@ -254,7 +254,7 @@ impl<'a> Apply<'a> for Def<'a> {
     }
 }
 
-pub fn decay(ast: Ast) -> Exp {
+pub fn decay(ast: &Ast) -> Exp {
     let mut st = State::new();
     let mut ctx = Ctx::new();
 

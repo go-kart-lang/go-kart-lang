@@ -113,7 +113,7 @@ impl<'a> Verify<'a> for Term<'a> {
     }
 }
 
-pub fn verify(mut ast: Ast) -> VerifyRes<'_, Ast> {
+pub fn verify(ast: &mut Ast) -> VerifyRes<'_, ()> {
     let mut st = State::new();
     let mut ctx = Ctx::new(); // todo
 
@@ -122,5 +122,5 @@ pub fn verify(mut ast: Ast) -> VerifyRes<'_, Ast> {
     }
     ast.body.verify(&ctx, &mut st)?;
 
-    Ok(ast)
+    Ok(())
 }

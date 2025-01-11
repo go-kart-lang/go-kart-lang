@@ -61,7 +61,7 @@ fn main() {
     //         "#;
 
     let res = parse(input).unwrap();
-    let exp = decay(res);
+    let exp = decay(&res);
 
     println!("{exp:?}");
 }
