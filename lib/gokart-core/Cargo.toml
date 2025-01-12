@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 nom_locate = "4.2.0"
 derive-new = "0.7.0"
+miette = "7.4.0"
