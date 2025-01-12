@@ -81,17 +81,6 @@ pub struct Name<'a> {
     pub loc: Loc<'a>,
 }
 
-// todo: remove
-// impl<'a> Name<'a> {
-//     pub fn predef(val: VarName<'a>) -> Self {
-//         Self {
-//             val,
-//             // because predifined names have no location in source code
-//             loc: Loc::new(""),
-//         }
-//     }
-// }
-
 impl<'a> Deref for Name<'a> {
     type Target = VarName<'a>;
 
