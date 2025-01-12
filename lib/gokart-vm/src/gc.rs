@@ -40,6 +40,12 @@ impl GC {
     }
 }
 
+impl Default for GC {
+    fn default() -> Self {
+        Self::new(10_000)
+    }
+}
+
 struct Vacuum {
     pending: VecDeque<Ref>,
 }
@@ -69,16 +75,19 @@ trait Trace {
 
 impl Trace for Value {
     fn trace(&self, vac: &mut Vacuum) {
+        use Value::*;
         match self {
-            Value::Empty => (),
-            Value::Int(_) => (),
-            Value::Label(_) => (),
-            Value::Pair(a, b) => {
+            Empty => (),
+            Int(_) => (),
+            Double(_) => (),
+            Str(_) => (),
+            Label(_) => (),
+            Pair(a, b) => {
                 vac.mark(*a);
                 vac.mark(*b);
             }
-            Value::Tagged(_, r) => vac.mark(*r),
-            Value::Closure(r, _) => vac.mark(*r),
+            Tagged(_, r) => vac.mark(*r),
+            Closure(r, _) => vac.mark(*r),
         }
     }
 }

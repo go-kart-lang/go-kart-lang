@@ -1,5 +1,7 @@
+use gokart_compile::compile;
 use gokart_decay::decay;
 use gokart_parse::parse;
+use gokart_vm::{GC, VM};
 // use miette::Error;
 
 fn main() {
@@ -17,14 +19,14 @@ fn main() {
     //     in headOption Nil
     // "#;
 
-    let input = r#"
-        data IntList = Nil | Cons Int IntList
-        data Option = None | Some Int
+    // let input = r#"
+    //     data IntList = Nil | Cons Int IntList
+    //     data Option = None | Some Int
 
-        letrec
-            x = 22;
-        in print (i2s x)
-    "#;
+    //     let
+    //         x = 22;
+    //     in print (i2s (x + 33))
+    // "#;
 
     // let input = r#"
     //     letrec impl = \a b n ->
@@ -34,34 +36,21 @@ fn main() {
     //     in fib 50
     // "#;
 
-    // let code_with_io = r#"
-    //     letrec impl = \n res ->
-    //         if n == 0 then res
-    //         else impl (n - 1) (n * res);
-    //     in letrec factorial = \n -> impl n 1;
-    //     in print (factorial read)
-    // "#;
-
-    //     let start = Instant::now();
-
-    //     {
-    //         let pipe = Pipeline::new(10_000);
-    //         let res = pipe.run_from_string(code_with_io, false);
-    //         println!("{:?}", res);
-    //     }
-
-    //     let elapsed = start.elapsed();
-    //     println!("===============================");
-    //     println!("Execution time: {:.3?}", elapsed);
-    //
-
-    //     let input = r#"
-    // let f = \x -> x;
-    // in f (f 2)
-    //         "#;
+    let input = r#"
+        letrec impl = \n res ->
+            if n == 0 then res
+            else impl (n - 1) (n * res);
+        in let factorial = \n -> impl n 1;
+        in let n = s2i (read ());
+        in print (i2s (factorial n))
+    "#;
 
     let res = parse(input).unwrap();
     let exp = decay(&res);
-
-    println!("{exp:?}");
+    // eprintln!("{exp:?}");
+    let code = compile(&exp);
+    // eprintln!("{:?}", code.iter().enumerate().collect::<Vec<_>>());
+    let mut vm = VM::new(code, GC::default());
+    vm.run();
+    // println!("VM env: {:?}", vm.cur_env())
 }
