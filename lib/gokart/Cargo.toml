@@ -9,5 +9,5 @@ gokart-parse = { path = "../gokart-parse" }
 # gokart-verify = { path = "../gokart-verify" }
 gokart-decay = { path = "../gokart-decay" }
 gokart-compile = { path = "../gokart-compile" }
-# gokart-vm = { path = "../gokart-vm" }
+gokart-vm = { path = "../gokart-vm" }
 miette = { version = "7.4.0", features = [ "fancy" ] }

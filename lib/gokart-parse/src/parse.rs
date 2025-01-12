@@ -426,66 +426,25 @@ mod tests {
         }
     }
 
-    // todo: tests
+    #[test]
+    fn test_let_term_parser() {
+        let input = "let x = 5; in x";
+        let res = let_term(Loc::new(input));
 
-    // #[test]
-    //  fn test_let_term_parser() {
-    //      let input = "let x = 5; in x";
-    //      let result = let_term(Loc(input));
-    //      assert!(result.is_ok(), "Expected Ok, got {:?}", result);
-    //      let (_, term) = result.unwrap();
-    //      match term.as_ref() {
-    //          TermNode::Let(let_kind, tpls, terms, body) => {
-    //              assert!(matches!(let_kind, LetKind::NonRec));
+        if let Err(e) = res {
+            panic!("Unexpected error: {e:?}")
+        }
+    }
 
-    //              assert!(matches!(tpls.as_ref(), TplNode::Seq(x) if x.iter().len() == 1));
-    //              assert!(matches!(
-    //                  tpls.as_ref(),
-    //                  TplNode::Seq(x) if matches!(
-    //                      x.first().unwrap().as_ref(),
-    //                      TplNode::Var(x) if x.val() == "x"
-    //                  )
-    //              ));
+    #[test]
+    fn ok_cond_parser() {
+        let input = "if someName == 123 then 1 else 0";
+        let res = cond(Loc::new(input));
 
-    //              assert!(matches!(terms.as_ref(), TermNode::Seq(x) if x.iter().len() == 1));
-    //              assert!(matches!(
-    //                  terms.as_ref(),
-    //                  TermNode::Seq(x) if matches!(
-    //                      x.first().unwrap().as_ref(),
-    //                      TermNode::Lit(x) if matches!(x, Lit::Int(5))
-    //                  )
-    //              ));
-
-    //              assert!(matches!(
-    //                  body.as_ref(),
-    //                  TermNode::Var(x) if x.val() == "x"
-    //              ));
-    //          }
-    //          _ => panic!("Expected Let TermNode, got {:?}", term),
-    //      }
-    //  }
-
-    // #[test]
-    // fn test_cond_parser() {
-    //     let input = "if someName == 123 then 1 else 0";
-    //     let result = cond(Loc(input));
-    //     assert!(result.is_ok(), "Expected Ok, got {:?}", result);
-    //     let (_, term) = result.unwrap();
-    //     match term.as_ref() {
-    //         TermNode::Cond(cond, true_term, else_term) => {
-    //             assert!(matches!(cond.as_ref(), TermNode::Opr(left, opr, right) if
-    //                 matches!(left.as_ref(), TermNode::Var(x) if x.val() == "someName") &&
-    //                 opr.to_string() == "==" &&
-    //                 matches!(right.as_ref(), TermNode::Lit(x) if matches!(x, Lit::Int(123)))
-    //             ));
-
-    //             assert!(matches!(true_term.as_ref(), TermNode::Lit(x) if matches!(x, Lit::Int(1))));
-
-    //             assert!(matches!(else_term.as_ref(), TermNode::Lit(x) if matches!(x, Lit::Int(0))));
-    //         }
-    //         _ => panic!("Expected Cond TermNode, got {:?}", term),
-    //     }
-    // }
+        if let Err(e) = res {
+            panic!("Unexpected error: {e:?}")
+        }
+    }
 
     #[test]
     fn ok_valid_ast() {

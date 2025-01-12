@@ -5,7 +5,7 @@ use crate::{
 use core::slice;
 use gokart_core::Label;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct State {
     pub ip: Label,
     pub is_running: bool,
@@ -26,12 +26,10 @@ impl State {
             is_running: true,
             heap,
             env,
-            stack: Stack::default(),
+            stack: Stack::new(),
         }
     }
-}
 
-impl State {
     #[inline]
     pub fn cur_env(&self) -> &Value {
         &self.heap[self.env]
@@ -43,12 +41,23 @@ impl State {
     }
 }
 
+impl Default for State {
+    fn default() -> Self {
+        State::init_with(|h| h.alloc(Value::Empty))
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct Stack<T> {
     data: Vec<T>,
 }
 
 impl<T> Stack<T> {
+    #[inline]
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
     #[inline]
     pub fn push(&mut self, value: T) {
         self.data.push(value);

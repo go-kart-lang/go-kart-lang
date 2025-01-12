@@ -35,6 +35,11 @@ impl Heap {
     pub fn len(&self) -> usize {
         self.data.len()
     }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 impl ops::Index<Ref> for Heap {

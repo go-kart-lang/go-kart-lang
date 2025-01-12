@@ -1,18 +1,22 @@
-use gokart_core::Code;
-
 use crate::ops::Ops;
 use crate::value::Value;
 use crate::{state::State, GC};
+use gokart_core::OpCode;
 
 pub struct VM {
     state: State,
-    code: Code,
+    code: Vec<OpCode>,
     gc: GC,
 }
 
 impl VM {
     #[inline]
-    pub fn new(state: State, code: Code, gc: GC) -> Self {
+    pub fn new(code: Vec<OpCode>, gc: GC) -> Self {
+        Self::from_state(State::default(), code, gc)
+    }
+
+    #[inline]
+    pub fn from_state(state: State, code: Vec<OpCode>, gc: GC) -> Self {
         Self { state, code, gc }
     }
 
@@ -38,14 +42,14 @@ impl VM {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gokart_core::{GOpCode, Int, PrimOp};
+    use gokart_core::{BinOp, GOpCode, Int, NullOp};
     use GOpCode::*;
 
     #[test]
     fn it_can_add_one_and_four() {
-        let code = Code::from([
+        let code = Vec::from([
             Push,
-            QuoteInt(4),
+            Sys0(NullOp::IntLit(4)),
             Swap,
             Cur(6),
             App,
@@ -54,7 +58,7 @@ mod tests {
             Acc(0),
             Swap,
             Acc(1),
-            Prim(PrimOp::IntPlus),
+            Sys2(BinOp::IntPlus),
             Return,
         ]);
         let state = State::init_with(|h| {
@@ -63,7 +67,7 @@ mod tests {
             h.alloc(Value::Pair(p1, p2))
         });
         let gc = GC::new(10_000);
-        let mut vm = VM::new(state, code, gc);
+        let mut vm = VM::from_state(state, code, gc);
 
         vm.run();
         let res = vm.cur_env();
@@ -72,9 +76,9 @@ mod tests {
     }
 
     fn even_program(n: Int, expected: Int) {
-        let code = Code::from([
+        let code = Vec::from([
             Push,
-            QuoteInt(n),
+            Sys0(NullOp::IntLit(n)),
             Swap,
             Rest(0),
             Call(7),
@@ -86,30 +90,29 @@ mod tests {
             Push,
             Acc(0),
             Swap,
-            QuoteInt(0),
-            Prim(PrimOp::IntEq),
+            Sys0(NullOp::IntLit(0)),
+            Sys2(BinOp::IntEq),
             GotoFalse(18),
-            QuoteInt(1),
+            Sys0(NullOp::IntLit(1)),
             Goto(32),
             Push,
-            QuoteInt(1),
+            Sys0(NullOp::IntLit(1)),
             Swap,
             Push,
             Push,
             Acc(0),
             Swap,
-            QuoteInt(1),
-            Prim(PrimOp::IntMinus),
+            Sys0(NullOp::IntLit(1)),
+            Sys2(BinOp::IntMinus),
             Swap,
             Rest(1),
             Call(7),
             App,
-            Prim(PrimOp::IntMinus),
+            Sys2(BinOp::IntMinus),
             Return,
         ]);
-        let state = State::init_with(|h| h.alloc(Value::Empty));
         let gc = GC::new(10_000);
-        let mut vm = VM::new(state, code, gc);
+        let mut vm = VM::new(code, gc);
 
         vm.run();
         let res = vm.cur_env();

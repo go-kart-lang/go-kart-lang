@@ -4,6 +4,19 @@ use gokart_decay::decay;
 use gokart_parse::parse;
 use gokart_vm::{State, Value, GC, VM};
 
+//     let start = Instant::now();
+
+//     {
+//         let pipe = Pipeline::new(10_000);
+//         let res = pipe.run_from_string(code_with_io, false);
+//         println!("{:?}", res);
+//     }
+
+//     let elapsed = start.elapsed();
+//     println!("===============================");
+//     println!("Execution time: {:.3?}", elapsed);
+//
+
 pub struct Pipeline {
     gc_size: usize,
 }

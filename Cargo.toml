@@ -6,6 +6,7 @@ members = [
     # "lib/gokart-verify",
     "lib/gokart-decay",
     "lib/gokart-compile",
-    # "lib/gokart-vm",
+    "lib/gokart-serde",
+    "lib/gokart-vm",
     "lib/gokart",
 ]
