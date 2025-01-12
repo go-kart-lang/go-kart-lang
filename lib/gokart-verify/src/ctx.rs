@@ -1,5 +1,8 @@
-use crate::err::{VerifyErr, VerifyRes};
-use gokart_core::{LocExt, Name, Type, TypeVar, VarName};
+use crate::{
+    err::{VerifyErr, VerifyRes},
+    ty::{Type, TypeVar},
+};
+use gokart_core::{LocExt, Name, VarName};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

@@ -1,12 +1,12 @@
 use crate::{
-    apply::Apply,
     ctx::{Ctx, Subst, TypeInfo, TypeScheme},
     err::VerifyRes,
     state::State,
+    ty::Type,
 };
 use gokart_core::{
-    Abs, App, Ast, Case, ConTerm, Cond, EmptyTerm, Let, Letrec, Lit, Name, Opr, PairTerm, Term,
-    Type,
+    Abs, App, Ast, Case, ConTerm, Cond, Def, EmptyTerm, Let, Letrec, Lit, Name, Opr, PairTerm,
+    Term, TypeDef,
 };
 
 trait Verify<'a> {
@@ -113,14 +113,33 @@ impl<'a> Verify<'a> for Term<'a> {
     }
 }
 
-pub fn verify(ast: &mut Ast) -> VerifyRes<'_, ()> {
-    let mut st = State::new();
-    let mut ctx = Ctx::new(); // todo
+pub trait Apply<'a> {
+    fn apply(&self, ctx: Ctx<'a>) -> VerifyRes<'a, Ctx<'a>>;
+}
 
-    for def in ast.defs.iter() {
-        ctx = def.apply(ctx)?;
+impl<'a> Apply<'a> for TypeDef<'a> {
+    fn apply(&self, ctx: Ctx<'a>) -> VerifyRes<'a, Ctx<'a>> {
+        Ok(ctx) // todo
     }
-    ast.body.verify(&ctx, &mut st)?;
+}
+
+impl<'a> Apply<'a> for Def<'a> {
+    fn apply(&self, ctx: Ctx<'a>) -> VerifyRes<'a, Ctx<'a>> {
+        match self {
+            Def::TypeDef(type_def) => type_def.apply(ctx),
+        }
+    }
+}
+
+// todo: implement
+pub fn verify<'a>(ast: &mut Ast<'a>) -> VerifyRes<'a, ()> {
+    // let mut st = State::new();
+    // let mut ctx = Ctx::new();
+
+    // for def in ast.defs.iter() {
+    //     ctx = def.apply(ctx)?;
+    // }
+    // ast.body.verify(&ctx, &mut st)?;
 
     Ok(())
 }

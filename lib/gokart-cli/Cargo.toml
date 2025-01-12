@@ -1,13 +1,16 @@
 [package]
-name = "gokart"
+name = "gokart-cli"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 gokart-core = { path = "../gokart-core" }
 gokart-parse = { path = "../gokart-parse" }
-# gokart-verify = { path = "../gokart-verify" }
+gokart-verify = { path = "../gokart-verify" }
 gokart-decay = { path = "../gokart-decay" }
 gokart-compile = { path = "../gokart-compile" }
+gokart-serde = { path = "../gokart-serde" }
 gokart-vm = { path = "../gokart-vm" }
+clap = { version = "4.5.26", features = [ "derive" ] }
 miette = { version = "7.4.0", features = [ "fancy" ] }
+thiserror = "2.0.10"
