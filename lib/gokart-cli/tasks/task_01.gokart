@@ -1,5 +1,5 @@
 letrec impl = \n res ->
     if n == 0 then res
     else impl (n - 1) (n * res);
-in letrec factorial = \n -> impl n 1;
-in factorial 20
+in let factorial = \n -> impl n 1;
+in print (i2s (factorial 20))

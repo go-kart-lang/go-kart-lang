@@ -1,4 +1,4 @@
-use gokart_core::TypeVar;
+use crate::ty::TypeVar;
 
 #[derive(Debug)]
 struct Counter {

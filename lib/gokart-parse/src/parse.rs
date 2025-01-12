@@ -352,11 +352,8 @@ fn ast(i: Loc) -> ParseRes<Ast> {
     Ok((rem, ast))
 }
 
-pub fn parse<'a, S>(s: S) -> Result<Ast<'a>, ParseErr>
-where
-    S: Into<&'a str>,
-{
-    match ast(Loc::new(s.into())) {
+pub fn parse(s: &str) -> Result<Ast<'_>, ParseErr> {
+    match ast(Loc::new(s)) {
         Ok((_, ast)) => Ok(ast),
         Err(nom::Err::Error(e)) => Err(e),
         Err(nom::Err::Failure(e)) => Err(e),
