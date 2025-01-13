@@ -17,7 +17,7 @@ pub enum UnOp {
     Str2Double,
     Double2Int,
     Int2Double,
-    VectorIntZeros,
+    VectorIntLength,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,8 +45,10 @@ pub enum BinOp {
     StrPlus,
     StrEq,
     StrNe,
+    VectorIntFill,
     VectorIntGet,
     VectorIntUpdate,
+    VectorIntUpdateMut,
 }
 
 #[derive(Debug, PartialEq)]

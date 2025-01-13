@@ -1,0 +1,6 @@
+letrec printArray = \vec cur -> if (cur < vectorIntLength vec) then (let _ = if (vectorIntGet vec cur == 1) then print (i2s cur) else (); in printArray vec (cur + 1)) else (); in
+letrec mark = \vec step cur -> if (cur < vectorIntLength vec) then mark (vectorIntUpdate vec (cur, 0)) step (cur + step) else vec; in
+letrec algo = \vec cur -> if (cur * cur >= vectorIntLength vec) then vec else (algo (if (vectorIntGet vec cur == 1) then mark vec cur (cur * 2) else vec) (cur + 1)); in
+let size = s2i (read ()); in
+let vec = vectorIntFill (size + 1) 1; in
+printArray (algo vec 2) 2

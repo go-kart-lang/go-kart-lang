@@ -17,9 +17,11 @@ impl<'a, 'b> Predef<'a, 'b> {
             ("s2d", un_op(UnOp::Str2Double)),
             ("d2i", un_op(UnOp::Double2Int)),
             ("i2d", un_op(UnOp::Int2Double)),
-            ("vectorIntZeros", un_op(UnOp::VectorIntZeros)),
+            ("vectorIntFill", bin_op(BinOp::VectorIntFill)),
             ("vectorIntGet", bin_op(BinOp::VectorIntGet)),
             ("vectorIntUpdate", bin_op(BinOp::VectorIntUpdate)),
+            ("vectorIntLength", un_op(UnOp::VectorIntLength)),
+            ("vectorIntUpdateMut", bin_op(BinOp::VectorIntUpdateMut)),
         ]);
 
         Self { items, body }

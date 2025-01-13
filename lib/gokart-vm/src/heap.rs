@@ -23,6 +23,10 @@ impl Heap {
         cur_ref
     }
 
+    pub fn index_mut(&mut self, r: Ref) -> &mut Value {
+        self.data.get_mut(&r).unwrap()
+    }
+
     #[inline]
     pub fn retain<F>(&mut self, f: F)
     where
