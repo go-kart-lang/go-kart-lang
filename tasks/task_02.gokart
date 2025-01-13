@@ -1,4 +1,4 @@
-let vec = vectorIntZeros 10; in
+let vec = vectorIntFill 10 0; in
 let prev_val = vectorIntGet vec 0; in
 let vec_ = vectorIntUpdate vec (0, 5); in
 let prev_val2 = vectorIntGet vec 0; in
