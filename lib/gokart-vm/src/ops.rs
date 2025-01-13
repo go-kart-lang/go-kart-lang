@@ -69,6 +69,12 @@ impl Ops for UnOp {
                 let val = state.cur_env().as_int();
                 state.env = state.alloc(Value::Double(val as f64))
             }
+            VectorIntZeros => {
+                let size = state.cur_env().as_int();
+                let mut vec = rpds::Vector::new();
+                vec.extend(std::iter::repeat(0).take(size as usize));
+                state.env = state.alloc(Value::VectorInt(vec))
+            }
         }
         state.ip += 1;
     }
@@ -109,6 +115,13 @@ impl Ops for BinOp {
             StrPlus => Value::Str(a.as_str().to_owned() + b.as_str()),
             StrEq => Value::Int((a.as_str() == b.as_str()) as Int),
             StrNe => Value::Int((a.as_str() != b.as_str()) as Int),
+            VectorIntGet => Value::Int(*a.as_vector_int().get(b.as_int() as usize).unwrap()),
+            VectorIntUpdate => {
+                let (idx_ref, v_ref) = b.as_pair();
+                let idx = state.heap[idx_ref].as_int();
+                let v = state.heap[v_ref].as_int();
+                Value::VectorInt(a.as_vector_int().set(idx as usize, v).unwrap())
+            }
         };
 
         state.env = state.alloc(val);

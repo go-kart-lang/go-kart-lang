@@ -149,19 +149,11 @@ impl<'a, 'b> Decay<'a> for Predef<'a, 'b> {
     fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
         let (ctx_, pat, exp) = self.items.iter().fold(
             (ctx.clone(), Pat::Empty, Exp::Empty),
-            |(ctx_, pat, exp), (name, un_op)| {
+            |(ctx_, pat, exp), (name, newfunc)| {
                 let new_ctx = ctx_.add_var(name, st);
                 let new_pat = Pat::Pair(pat.ptr(), Pat::Var(new_ctx.var(name)).ptr());
 
-                let tmp_idx = st.next_var();
-                let new_exp = Exp::Pair(
-                    exp.ptr(),
-                    Exp::Abs(
-                        Pat::Var(tmp_idx),
-                        Exp::Sys1(*un_op, Exp::Var(tmp_idx).ptr()).ptr(),
-                    )
-                    .ptr(),
-                );
+                let new_exp = Exp::Pair(exp.ptr(), newfunc.clone().ptr());
 
                 (new_ctx, new_pat, new_exp)
             },

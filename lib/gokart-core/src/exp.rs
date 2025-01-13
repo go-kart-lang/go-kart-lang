@@ -2,7 +2,7 @@ use crate::{BinOp, NullOp, Tag, UnOp};
 
 pub type Var = usize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Exp {
     Empty,
     Var(Var),
@@ -25,7 +25,7 @@ impl Exp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Pat {
     Empty,
     Var(Var),

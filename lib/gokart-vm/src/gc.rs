@@ -81,6 +81,7 @@ impl Trace for Value {
             Int(_) => (),
             Double(_) => (),
             Str(_) => (),
+            VectorInt(_) => (),
             Label(_) => (),
             Pair(a, b) => {
                 vac.mark(*a);

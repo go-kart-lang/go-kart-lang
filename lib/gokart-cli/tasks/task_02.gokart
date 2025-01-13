@@ -1,1 +1,8 @@
-todo
+let vec = vectorIntZeros 10; in
+let prev_val = vectorIntGet vec 0; in
+let vec_ = vectorIntUpdate vec (0, 5); in
+let prev_val2 = vectorIntGet vec 0; in
+let cur_val = vectorIntGet vec_ 0; in
+let _ = print (i2s prev_val); in
+let _ = print (i2s prev_val2); in
+print (i2s cur_val)

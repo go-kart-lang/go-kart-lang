@@ -8,6 +8,7 @@ pub enum Value {
     Int(Int),
     Double(Double),
     Str(Str),
+    VectorInt(rpds::Vector<Int>),
     Label(Label),
     Pair(Ref, Ref),
     Tagged(Tag, Ref),
@@ -35,7 +36,12 @@ impl Value {
             _ => panic!("Expected Value::Str"),
         }
     }
-
+    pub fn as_vector_int(&self) -> &rpds::Vector<Int> {
+        match self {
+            Value::VectorInt(val) => val,
+            _ => panic!("Expected Value::VectorInt"),
+        }
+    }
     pub fn as_label(&self) -> Label {
         match self {
             Value::Label(label) => *label,

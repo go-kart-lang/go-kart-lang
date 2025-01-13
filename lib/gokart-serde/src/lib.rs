@@ -234,6 +234,7 @@ impl Serialize for UnOp {
             Str2Double => 6,
             Double2Int => 7,
             Int2Double => 8,
+            VectorIntZeros => 9,
         };
         tag.serialize(w);
     }
@@ -256,6 +257,7 @@ impl Deserialize for UnOp {
             6 => Ok(Str2Double),
             7 => Ok(Double2Int),
             8 => Ok(Int2Double),
+            9 => Ok(VectorIntZeros),
             _ => Err(SerdeErr::UnexpectedOpCode),
         }
     }
@@ -291,6 +293,8 @@ impl Serialize for BinOp {
             StrPlus => 21,
             StrEq => 22,
             StrNe => 23,
+            VectorIntGet => 24,
+            VectorIntUpdate => 25,
         };
         tag.serialize(w);
     }
@@ -328,6 +332,8 @@ impl Deserialize for BinOp {
             21 => Ok(StrPlus),
             22 => Ok(StrEq),
             23 => Ok(StrNe),
+            24 => Ok(VectorIntGet),
+            25 => Ok(VectorIntUpdate),
             _ => Err(SerdeErr::UnexpectedOpCode),
         }
     }
