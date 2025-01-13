@@ -19,7 +19,10 @@ impl<'a> NameTable<'a> {
     pub fn get(&self, name: VarName<'a>) -> usize {
         // because we check everything on verify step,
         // so now we are confident that all names are defined
-        *self.items.get(name).unwrap()
+        match self.items.get(name) {
+            Some(v) => *v,
+            None => panic!("Unable to find {}", name),
+        }
     }
 
     #[inline]
