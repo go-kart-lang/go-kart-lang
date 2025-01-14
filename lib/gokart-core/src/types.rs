@@ -4,10 +4,3 @@ pub type Str = String;
 
 pub type Tag = usize;
 pub type Label = usize;
-
-#[derive(Debug)]
-pub enum Hint {
-    Int,
-    Double,
-    Str,
-}

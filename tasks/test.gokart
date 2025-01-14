@@ -1,0 +1,5 @@
+data Wrapper = Wrapper Int Int
+
+let
+	id = \x -> x;
+in (id 5, id "blah")

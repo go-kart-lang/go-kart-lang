@@ -3,7 +3,7 @@ use core::panic;
 use crate::{ctx::Ctx, state::State};
 use gokart_core::{
     Abs, App, AsTpl, Ast, BinOp, Case, ConTerm, Cond, Def, EmptyTerm, EmptyTpl, Exp, Let, Letrec,
-    Lit, Name, NullOp, Opr, PairTerm, PairTpl, Pat, Predef, Term, Tpl, TypeDef,
+    Lit, Name, NullOp, Opr, PairTerm, PairTpl, Pat, PredefTerm, Term, Tpl, TypeDef,
 };
 
 trait Decay<'a> {
@@ -145,11 +145,11 @@ impl<'a> Decay<'a> for Letrec<'a> {
     }
 }
 
-impl<'a, 'b> Decay<'a> for Predef<'a, 'b> {
+impl<'a> Decay<'a> for PredefTerm<'a> {
     fn decay(&self, ctx: &Ctx<'a>, st: &mut State) -> Exp {
-        let (ctx_, pat, exp) = self.items.iter().fold(
+        let (ctx_, pat, exp) = self.predef.items.iter().fold(
             (ctx.clone(), Pat::Empty, Exp::Empty),
-            |(ctx_, pat, exp), (name, newfunc)| {
+            |(ctx_, pat, exp), (name, newfunc, _)| {
                 let new_ctx = ctx_.add_var(name, st);
                 let new_pat = Pat::Pair(pat.ptr(), Pat::Var(new_ctx.var(name)).ptr());
 
@@ -178,6 +178,7 @@ impl<'a> Decay<'a> for Term<'a> {
             Term::Case(term) => term.decay(ctx, st),
             Term::Let(term) => term.decay(ctx, st),
             Term::Letrec(term) => term.decay(ctx, st),
+            Term::Predef(term) => term.decay(ctx, st),
         }
     }
 }
@@ -250,9 +251,8 @@ pub fn decay(ast: &Ast) -> Exp {
     let mut st = State::new();
     let mut ctx = Ctx::new();
 
-    let Ast { defs, body, .. } = ast;
-    for def in defs.iter() {
+    for def in ast.defs.iter() {
         ctx = def.apply(ctx, &mut st);
     }
-    Predef::new(body).decay(&ctx, &mut st)
+    ast.body.decay(&ctx, &mut st)
 }
