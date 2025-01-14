@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use gokart_compile::compile;
+use gokart_core::Predef;
 use gokart_decay::decay;
 use gokart_parse::parse;
 use gokart_verify::verify;
@@ -43,6 +44,7 @@ impl Commands {
                         CliErr::MTError(mt::Error::from(e).with_source_code(input.clone()))
                     })?
                 };
+                ast = ast.with_predef(Predef::default());
                 {
                     let res = verify(&mut ast);
                     res.map_err(|e| {
@@ -53,8 +55,12 @@ impl Commands {
 
                 let exp = decay(&ast);
                 let code = compile(&exp);
+                println!("code done"); // todo
+
                 let mut vm = VM::new(code, GC::default());
                 vm.run();
+
+                println!("done"); // todo
                 Ok(())
             }
         }

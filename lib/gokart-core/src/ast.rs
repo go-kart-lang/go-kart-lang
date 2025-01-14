@@ -1,6 +1,7 @@
+use core::panic;
 use std::ops::Deref;
 
-use crate::{Hint, Loc};
+use crate::{BinOp, Loc, Predef};
 use derive_new::new;
 
 #[derive(Debug, new)]
@@ -51,6 +52,16 @@ pub struct Ast<'a> {
     pub loc: Loc<'a>,
 }
 
+impl<'a> Ast<'a> {
+    pub fn with_predef(self, predef: Predef) -> Self {
+        Ast::new(
+            self.defs,
+            Term::Predef(PredefTerm::new(predef, self.body.ptr())),
+            self.loc,
+        )
+    }
+}
+
 #[derive(Debug)]
 pub enum Def<'a> {
     TypeDef(TypeDef<'a>),
@@ -75,7 +86,7 @@ pub struct PairTerm<'a> {
 
 pub type VarName<'a> = &'a str;
 
-#[derive(Debug, new)]
+#[derive(Debug, new, Clone)]
 pub struct Name<'a> {
     pub val: VarName<'a>,
     pub loc: Loc<'a>,
@@ -92,7 +103,7 @@ impl<'a> Deref for Name<'a> {
 #[derive(Debug, new)]
 pub struct Con<'a> {
     pub name: Name<'a>,
-    pub params: Vec<Name<'a>>,
+    pub args: Vec<Name<'a>>,
     pub loc: Loc<'a>,
 }
 
@@ -115,8 +126,7 @@ pub struct Opr<'a> {
     pub left: TermPtr<'a>,
     pub name: Name<'a>,
     pub right: TermPtr<'a>,
-    pub left_hint: Option<Hint>,
-    pub right_hint: Option<Hint>,
+    pub hint: Option<BinOp>,
     pub loc: Loc<'a>,
 }
 
@@ -126,8 +136,7 @@ impl<'a> Opr<'a> {
             left,
             name,
             right,
-            left_hint: None,
-            right_hint: None,
+            hint: None,
             loc,
         }
     }
@@ -186,6 +195,12 @@ pub struct Letrec<'a> {
     pub loc: Loc<'a>,
 }
 
+#[derive(Debug, new)]
+pub struct PredefTerm<'a> {
+    pub predef: Predef,
+    pub body: TermPtr<'a>,
+}
+
 #[derive(Debug)]
 pub enum Term<'a> {
     Empty(EmptyTerm<'a>),
@@ -200,6 +215,7 @@ pub enum Term<'a> {
     Case(Case<'a>),
     Let(Let<'a>),
     Letrec(Letrec<'a>),
+    Predef(PredefTerm<'a>),
 }
 
 impl<'a> Term<'a> {
@@ -222,6 +238,8 @@ impl<'a> Term<'a> {
             Term::Case(term) => term.loc,
             Term::Let(term) => term.loc,
             Term::Letrec(term) => term.loc,
+            // because predefined ops have no location in source code
+            Term::Predef(_) => Loc::new(""),
         }
     }
 }
@@ -271,6 +289,14 @@ impl<'a> Tpl<'a> {
             Tpl::Var(tpl) => tpl.loc,
             Tpl::Pair(tpl) => tpl.loc,
             Tpl::As(tpl) => tpl.loc,
+        }
+    }
+
+    // todo: temp
+    pub fn as_var(&self) -> Name<'a> {
+        match self {
+            Tpl::Var(x) => x.clone(),
+            _ => panic!("todo"),
         }
     }
 }

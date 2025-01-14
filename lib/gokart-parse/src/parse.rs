@@ -319,8 +319,8 @@ fn tpl(i: Loc) -> ParseRes<Tpl> {
 fn con(i: Loc) -> ParseRes<Con> {
     let res = tuple((udent, many0(udent)));
 
-    map(with_loc(res), |(loc, (name, params))| {
-        Con::new(name, params, loc)
+    map(with_loc(res), |(loc, (name, args))| {
+        Con::new(name, args, loc)
     })(i)
 }
 
