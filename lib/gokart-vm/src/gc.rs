@@ -1,94 +1,86 @@
+use std::collections::VecDeque;
+
 use crate::{
     state::State,
-    value::{Ref, Value},
+    value::{Value, ValueBlock, ValueClosure, ValueEnv, RESERVED_TAG},
 };
-use std::collections::{HashSet, VecDeque};
 
 pub struct GC {
     threshold: usize,
 }
 
 impl GC {
-    #[inline]
     pub fn new(threshold: usize) -> Self {
         Self { threshold }
     }
 
-    #[inline]
-    pub fn is_necessary(&self, state: &State) -> bool {
-        state.heap.len() > self.threshold
-    }
-
-    #[inline]
     pub fn cleanup(&self, state: &mut State) {
         let mut vacuum = Vacuum::new();
-        vacuum.mark(state.env);
-        state.stack.iter().for_each(|&e| vacuum.mark(e));
 
-        let mut marked = HashSet::<Ref>::new();
-        loop {
-            let next = vacuum.next();
-            if let Some(r) = next {
-                if marked.insert(r) {
-                    state.heap[r].trace(&mut vacuum);
-                }
-            } else {
-                break;
+        for i in 0..state.asp.ptr {
+            match state.asp.data[i] {
+                crate::state::StackValue::Ptr(p) => vacuum.mark_value(p),
+                crate::state::StackValue::Mark => (),
             }
         }
-        state.heap.retain(|r| marked.contains(&r));
+
+        for i in 0..state.rsp.ptr {
+            match state.rsp.data[i] {
+                crate::state::StackValue::Ptr(p) => vacuum.mark_value(p),
+                crate::state::StackValue::Mark => (),
+            }
+        }
+
+        vacuum.mark_value(state.env as *mut Value);
+        vacuum.mark_value(state.acc);
+        vacuum.run();
+
+        state.heap.clean();
+    }
+}
+
+pub struct Vacuum {
+    queue: VecDeque<*mut Value>,
+}
+
+impl Vacuum {
+    pub fn new() -> Self {
+        Vacuum {
+            queue: VecDeque::new(),
+        }
+    }
+
+    pub fn mark_value(&mut self, value: *mut Value) {
+        if !value.is_null() && unsafe { &*value }.color() == 0 {
+            self.queue.push_back(value);
+        }
+    }
+
+    pub fn run(&mut self) {
+        while let Some(v) = self.queue.pop_front() {
+            let cur = unsafe { &mut *v };
+
+            if cur.tag() == ValueClosure::tag() {
+                let cur = cur.cast_mut::<ValueClosure>();
+                self.mark_value(cur.env);
+            } else if cur.tag() == ValueEnv::tag() {
+                let cur = cur.cast_mut::<ValueEnv>();
+                self.mark_value(cur.cur);
+                self.mark_value(cur.env as *mut Value);
+            } else if cur.tag() < RESERVED_TAG {
+                let cur = cur.cast_mut::<ValueBlock>();
+                for field in &cur.data {
+                    self.mark_value(*field as *mut Value);
+                }
+            }
+
+            cur.set_color(2);
+        }
     }
 }
 
 impl Default for GC {
     fn default() -> Self {
         Self::new(10_000)
-    }
-}
-
-struct Vacuum {
-    pending: VecDeque<Ref>,
-}
-
-impl Vacuum {
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            pending: VecDeque::new(),
-        }
-    }
-
-    #[inline]
-    pub fn mark(&mut self, r: Ref) {
-        self.pending.push_back(r);
-    }
-
-    #[inline]
-    pub fn next(&mut self) -> Option<Ref> {
-        self.pending.pop_front()
-    }
-}
-
-trait Trace {
-    fn trace(&self, vac: &mut Vacuum);
-}
-
-impl Trace for Value {
-    fn trace(&self, vac: &mut Vacuum) {
-        use Value::*;
-        match self {
-            Empty => (),
-            Int(_) => (),
-            Double(_) => (),
-            Str(_) => (),
-            VectorInt(_) => (),
-            Label(_) => (),
-            Pair(a, b) => {
-                vac.mark(*a);
-                vac.mark(*b);
-            }
-            Tagged(_, r) => vac.mark(*r),
-            Closure(r, _) => vac.mark(*r),
-        }
     }
 }

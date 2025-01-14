@@ -1,75 +1,72 @@
-use crate::{
-    heap::Heap,
-    value::{Ref, Value},
-};
-use core::slice;
+use crate::{heap::Heap, value::{Value, ValueEnv}};
 use gokart_core::Label;
+
+
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub enum StackValue {
+    Ptr(*mut Value),
+    #[default] Mark
+}
+
+impl StackValue {
+    pub fn as_ptr(self) -> *mut Value {
+        match self {
+            StackValue::Ptr(p) => p,
+            StackValue::Mark => panic!("expected ptr"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct State {
-    pub ip: Label,
+    pub ip: usize,
     pub is_running: bool,
     pub heap: Heap,
-    pub env: Ref,
-    pub stack: Stack<Ref>,
+    pub env: *mut ValueEnv,
+    pub acc: *mut Value,
+    pub rsp: Stack<10_000, StackValue>,
+    pub asp: Stack<10_000, StackValue>,
 }
 
 impl State {
-    pub fn init_with<F>(f: F) -> Self
-    where
-        F: Fn(&mut Heap) -> Ref,
-    {
-        let mut heap = Heap::default();
-        let env = f(&mut heap);
+
+    pub fn new() -> Self {
         Self {
             ip: 0,
             is_running: true,
-            heap,
-            env,
-            stack: Stack::new(),
+            heap: Heap::new(),
+            env: std::ptr::null_mut(),
+            acc: std::ptr::null_mut(),
+            rsp: Stack::new(),
+            asp: Stack::new()
         }
     }
-
-    #[inline]
-    pub fn cur_env(&self) -> &Value {
-        &self.heap[self.env]
-    }
-
-    #[inline]
-    pub fn alloc(&mut self, val: Value) -> Ref {
-        self.heap.alloc(val)
-    }
 }
 
-impl Default for State {
-    fn default() -> Self {
-        State::init_with(|h| h.alloc(Value::Empty))
-    }
+
+#[derive(Debug)]
+pub struct Stack<const N: usize, T> {
+    pub data: [T; N],
+    pub ptr: usize
 }
 
-#[derive(Default, Debug)]
-pub struct Stack<T> {
-    data: Vec<T>,
-}
+impl <const N: usize, T: Default + Copy> Stack<N, T>  {
 
-impl<T> Stack<T> {
-    #[inline]
     pub fn new() -> Self {
-        Self { data: Vec::new() }
+        Stack { data: [T::default(); N], ptr: 0 }
     }
 
-    #[inline]
-    pub fn push(&mut self, value: T) {
-        self.data.push(value);
+    pub fn push(&mut self, v: T) {
+        self.data[self.ptr] = v;
+        self.ptr += 1;
     }
 
-    #[inline]
     pub fn pop(&mut self) -> T {
-        self.data.pop().unwrap()
+        self.ptr -= 1;
+        self.data[self.ptr]
     }
 
-    #[inline]
-    pub fn iter(&self) -> slice::Iter<'_, T> {
-        self.data.iter()
+    pub fn access(&self, n: usize) -> T {
+        self.data[self.ptr - n - 1]
     }
 }

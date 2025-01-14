@@ -1,56 +1,57 @@
-use crate::value::{Ref, Value};
-use std::{collections::HashMap, ops};
+use crate::value::Value;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Heap {
-    data: HashMap<Ref, Value>,
-    next_ref: Ref,
+    pub data: *mut Value,
 }
 
 impl Heap {
-    #[inline]
     pub fn new() -> Self {
-        Self {
-            data: HashMap::new(),
-            next_ref: Ref::default(),
+        Heap {
+            data: std::ptr::null_mut(),
         }
     }
 
-    pub fn alloc(&mut self, val: Value) -> Ref {
-        let cur_ref = self.next_ref;
-        self.next_ref += 1;
-        self.data.insert(cur_ref, val);
-        cur_ref
-    }
-
-    pub fn index_mut(&mut self, r: Ref) -> &mut Value {
-        self.data.get_mut(&r).unwrap()
-    }
-
-    #[inline]
-    pub fn retain<F>(&mut self, f: F)
+    pub fn allocate<T, F>(&mut self, initializer: F) -> *mut T
     where
-        F: Fn(Ref) -> bool,
+        F: FnOnce(*mut T) -> (),
     {
-        self.data.retain(|&k, _| f(k));
+        let ptr: *mut T = unsafe { libc::malloc(std::mem::size_of::<T>()) as *mut T };
+        initializer(ptr);
+
+        let v = unsafe { &mut *(ptr as *mut Value) };
+        v.set_next(self.data);
+
+        self.data = ptr as *mut Value;
+
+        ptr
     }
 
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
+    pub fn clean(&mut self) {
+        let mut prev = std::ptr::null_mut();
+        let mut cur = self.data;
 
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
-}
+        loop {
+            if cur.is_null() { break; }
 
-impl ops::Index<Ref> for Heap {
-    type Output = Value;
+            let cur_o = unsafe { &mut *cur };
 
-    #[inline]
-    fn index(&self, r: Ref) -> &Self::Output {
-        &self.data[&r]
+            if cur_o.color() == 2 {
+                cur_o.set_color(0);
+                prev = cur;
+                cur = cur_o.next;
+            } else {
+                let unreached = cur;
+                cur = cur_o.next;
+                if prev.is_null() {
+                    self.data = cur;
+                } else {
+                    unsafe { &mut *prev }.set_next(cur);
+                }
+
+                unsafe { libc::free(unreached as *mut libc::c_void) };
+            }
+
+        }
     }
 }

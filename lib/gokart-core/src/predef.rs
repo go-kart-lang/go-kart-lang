@@ -9,19 +9,19 @@ pub struct Predef<'a, 'b> {
 impl<'a, 'b> Predef<'a, 'b> {
     pub fn new(body: &'b Term<'a>) -> Self {
         let items = Vec::from([
-            ("print", un_op(UnOp::Print)),
-            ("read", un_op(UnOp::Read)),
-            ("i2s", un_op(UnOp::Int2Str)),
-            ("s2i", un_op(UnOp::Str2Int)),
-            ("d2s", un_op(UnOp::Double2Str)),
-            ("s2d", un_op(UnOp::Str2Double)),
-            ("d2i", un_op(UnOp::Double2Int)),
-            ("i2d", un_op(UnOp::Int2Double)),
-            ("vectorIntFill", bin_op(BinOp::VectorIntFill)),
-            ("vectorIntGet", bin_op(BinOp::VectorIntGet)),
-            ("vectorIntUpdate", bin_op(BinOp::VectorIntUpdate)),
-            ("vectorIntLength", un_op(UnOp::VectorIntLength)),
-            ("vectorIntUpdateMut", bin_op(BinOp::VectorIntUpdateMut)),
+            // ("print", un_op(UnOp::Print)),
+            // ("read", un_op(UnOp::Read)),
+            // ("i2s", un_op(UnOp::Int2Str)),
+            // ("s2i", un_op(UnOp::Str2Int)),
+            // ("d2s", un_op(UnOp::Double2Str)),
+            // ("s2d", un_op(UnOp::Str2Double)),
+            // ("d2i", un_op(UnOp::Double2Int)),
+            // ("i2d", un_op(UnOp::Int2Double)),
+            // ("vectorIntFill", bin_op(BinOp::VectorIntFill)),
+            // ("vectorIntGet", bin_op(BinOp::VectorIntGet)),
+            // ("vectorIntUpdate", bin_op(BinOp::VectorIntUpdate)),
+            // ("vectorIntLength", un_op(UnOp::VectorIntLength)),
+            // ("vectorIntUpdateMut", bin_op(BinOp::VectorIntUpdateMut)),
         ]);
 
         Self { items, body }

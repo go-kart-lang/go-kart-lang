@@ -1,5 +1,5 @@
 use crate::ops::Ops;
-use crate::value::Value;
+use crate::value::{Value, ValueEnv};
 use crate::{state::State, GC};
 use gokart_core::OpCode;
 
@@ -12,7 +12,7 @@ pub struct VM {
 impl VM {
     #[inline]
     pub fn new(code: Vec<OpCode>, gc: GC) -> Self {
-        Self::from_state(State::default(), code, gc)
+        Self::from_state(State::new(), code, gc)
     }
 
     #[inline]
@@ -25,110 +25,62 @@ impl VM {
         while self.state.is_running {
             self.code[self.state.ip].execute(&mut self.state);
 
-            if self.gc.is_necessary(&self.state) {
-                self.gc.cleanup(&mut self.state);
-            }
+            // if self.gc.is_necessary(&self.state) {
+            //     self.gc.cleanup(&mut self.state);
+            // }
         }
+
+        self.gc.cleanup(&mut self.state);
+    }
+
+    pub fn cleanup(&mut self) {
+        self.state.heap.clean();
     }
 
     // TODO: consider move this method to trait, because
     // it required only in tests
-    #[inline]
-    pub fn cur_env(&self) -> &Value {
-        self.state.cur_env()
+    pub fn cur_env(&self) -> *mut ValueEnv {
+        self.state.env
+    }
+
+    pub fn cur_acc(&self) -> *mut Value {
+        self.state.acc
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::value::ValueInt;
+
     use super::*;
-    use gokart_core::{BinOp, GOpCode, Int, NullOp};
-    use GOpCode::*;
+    use gokart_core::{BinOp, GOpCode, NullOp};
 
     #[test]
-    fn it_can_add_one_and_four() {
+    fn test() {
         let code = Vec::from([
-            Push,
-            Sys0(NullOp::IntLit(4)),
-            Swap,
-            Cur(6),
-            App,
-            Stop,
-            Push,
-            Acc(0),
-            Swap,
-            Acc(1),
-            Sys2(BinOp::IntPlus),
-            Return,
-        ]);
-        let state = State::init_with(|h| {
-            let p1 = h.alloc(Value::Empty);
-            let p2 = h.alloc(Value::Int(1));
-            h.alloc(Value::Pair(p1, p2))
-        });
-        let gc = GC::new(10_000);
-        let mut vm = VM::from_state(state, code, gc);
-
-        vm.run();
-        let res = vm.cur_env();
-
-        assert_eq!(&Value::Int(5), res, "Expect Value::Int(5)");
-    }
-
-    fn even_program(n: Int, expected: Int) {
-        let code = Vec::from([
-            Push,
-            Sys0(NullOp::IntLit(n)),
-            Swap,
-            Rest(0),
-            Call(7),
-            App,
-            Stop,
-            Cur(9),
-            Return,
-            Push,
-            Push,
-            Acc(0),
-            Swap,
-            Sys0(NullOp::IntLit(0)),
-            Sys2(BinOp::IntEq),
-            GotoFalse(18),
-            Sys0(NullOp::IntLit(1)),
-            Goto(32),
-            Push,
-            Sys0(NullOp::IntLit(1)),
-            Swap,
-            Push,
-            Push,
-            Acc(0),
-            Swap,
-            Sys0(NullOp::IntLit(1)),
-            Sys2(BinOp::IntMinus),
-            Swap,
-            Rest(1),
-            Call(7),
-            App,
-            Sys2(BinOp::IntMinus),
-            Return,
+            GOpCode::PushMark,
+            GOpCode::Sys0(NullOp::IntLit(5)),
+            GOpCode::Push,
+            GOpCode::Cur(6),
+            GOpCode::Apply,
+            GOpCode::Stop,
+            GOpCode::Sys0(NullOp::IntLit(4)), // lbl:6
+            GOpCode::Push,
+            GOpCode::Acc(0),
+            GOpCode::Sys2(BinOp::IntPlus),
+            GOpCode::Return
         ]);
         let gc = GC::new(10_000);
-        let mut vm = VM::new(code, gc);
+        let mut vm = VM::from_state(State::new(), code, gc);
 
         vm.run();
-        let res = vm.cur_env();
 
-        assert_eq!(
-            &Value::Int(expected),
-            res,
-            "is_even({n}) = {res:?} (expected {expected})",
-        )
+        let res = unsafe { &*(vm.cur_acc() as *mut ValueInt) };
+        assert_eq!(res.data, 9);
+
+        vm.cleanup();
+
+        assert_eq!(vm.state.heap.data.is_null(), true);
     }
 
-    #[test]
-    fn it_can_check_if_number_is_even() {
-        even_program(0, 1);
-        even_program(56, 1);
-        even_program(1, 0);
-        even_program(55, 0);
-    }
 }
