@@ -10,7 +10,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
 pub enum ParseErr {
-    #[error("Unexpected char <{1}>")]
+    #[error("Unexpected char: < {1} >")]
     #[diagnostic()]
     UnexpectedChar(#[label("here")] Span, char),
 
@@ -26,7 +26,7 @@ pub enum ParseErr {
     #[diagnostic()]
     BadDoubleLiteral(#[label("here")] Span, ParseFloatError),
 
-    #[error("Expect {} but got {}", ._1.as_ref(), ._2.as_ref())]
+    #[error("Unexpected token: expected {}, found {}", ._1.as_ref(), ._2.as_ref())]
     #[diagnostic()]
     UnexpectedToken(#[label("here")] Span, TokenKind, TokenKind),
 }

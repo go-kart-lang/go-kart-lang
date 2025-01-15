@@ -25,7 +25,9 @@ impl<'a> Compile<'a> for Var {
 
         loop {
             match iter.next() {
-                None => panic!("Unable to extract variable"), // todo
+                None => unreachable!(
+                    "The correctness of the pattern is checked at the verification stage"
+                ),
                 Some(EnvUnit::Con(pat)) => {
                     if let Some(mut code) = compile_pattern(self, pat) {
                         code.push_front(VOpCode::Acc(lvl));
@@ -80,7 +82,6 @@ impl<'a> Compile<'a> for &'a Exp {
                 ctx.code.push_back(VOpCode::Sys0(op.clone()));
             }
             Exp::Sys1(op, exp) => {
-                // todo: I'm not sure
                 exp.compile(ctx, env);
                 ctx.code.push_back(VOpCode::Sys1(*op));
             }

@@ -1,5 +1,9 @@
-data Wrapper = Wrapper Int Int
+data Wrapper = Wrapper Int Int | Single Int
+data Another = Another Str
 
 let
-	id = \x -> x;
-in (id 5, id "blah")
+	f = \x -> case x of
+		| Wrapper (x, y) -> x;
+		| Single x -> i2s x;
+; in
+f Single(5)

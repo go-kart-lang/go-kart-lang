@@ -13,50 +13,22 @@ pub enum Type {
 
 impl Type {
     #[inline]
-    pub fn unit_idx() -> TypeIdx {
-        0
-    }
-
-    #[inline]
-    pub fn int_idx() -> TypeIdx {
-        1
-    }
-
-    #[inline]
-    pub fn double_idx() -> TypeIdx {
-        2
-    }
-
-    #[inline]
-    pub fn str_idx() -> TypeIdx {
-        3
-    }
-
-    #[inline]
-    pub fn unit() -> Self {
-        Self::Prim(Type::unit_idx())
-    }
-
-    #[inline]
-    pub fn int() -> Self {
-        Self::Prim(Type::int_idx())
-    }
-
-    #[inline]
-    pub fn double() -> Self {
-        Self::Prim(Type::double_idx())
-    }
-
-    #[inline]
-    pub fn str() -> Self {
-        Self::Prim(Type::str_idx())
-    }
-
-    #[inline]
     pub fn ptr(self) -> TypePtr {
         Box::new(self)
     }
 
+    #[inline]
+    pub fn func(from: Type, into: Type) -> Type {
+        Type::Func(from.ptr(), into.ptr())
+    }
+
+    #[inline]
+    pub fn pair(from: Type, into: Type) -> Type {
+        Type::Pair(from.ptr(), into.ptr())
+    }
+}
+
+impl Type {
     pub fn apply(&self, subst: &Subst) -> Type {
         match self {
             Type::Prim(idx) => Type::Prim(*idx),

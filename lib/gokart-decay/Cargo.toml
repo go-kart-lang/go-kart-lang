@@ -7,4 +7,3 @@ edition = "2021"
 gokart-core = { path = "../gokart-core" }
 thiserror = "2.0.10"
 miette = "7.4.0"
-rpds = "1.1.0"

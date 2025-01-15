@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
 use gokart_compile::compile;
-use gokart_core::Predef;
 use gokart_decay::decay;
 use gokart_parse::parse;
 use gokart_verify::verify;
@@ -37,16 +36,15 @@ impl Commands {
         match self {
             Commands::Run { file } => {
                 let input = read_file(file)?;
-                let mut ast = {
+                let ast = {
                     let res = parse(&input);
                     res.map_err(|e| {
                         // todo
                         CliErr::MTError(mt::Error::from(e).with_source_code(input.clone()))
                     })?
                 };
-                ast = ast.with_predef(Predef::default());
                 {
-                    let res = verify(&mut ast);
+                    let res = verify(&ast);
                     res.map_err(|e| {
                         // todo
                         CliErr::MTError(mt::Error::from(e).with_source_code(input.clone()))
