@@ -1,0 +1,10 @@
+[package]
+name = "gokart"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gokart-core = { path = "../gokart-core" }
+gokart-serde = { path = "../gokart-serde" }
+gokart-vm = { path = "../gokart-vm" }
+clap = { version = "4.5.26", features = [ "derive" ] }

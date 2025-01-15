@@ -1,0 +1,13 @@
+[package]
+name = "gokartc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gokart-parse = { path = "../gokart-parse" }
+gokart-verify = { path = "../gokart-verify" }
+gokart-decay = { path = "../gokart-decay" }
+gokart-compile = { path = "../gokart-compile" }
+gokart-serde = { path = "../gokart-serde" }
+clap = { version = "4.5.26", features = [ "derive" ] }
+miette = { version = "7.4.0", features = [ "fancy" ] }
