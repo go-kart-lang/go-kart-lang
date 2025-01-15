@@ -1,8 +1,6 @@
-use core::panic;
-use std::ops::Deref;
-
-use crate::{BinOp, Loc, Predef};
+use crate::Loc;
 use derive_new::new;
+use std::ops::Deref;
 
 #[derive(Debug, new)]
 pub struct IntLit<'a> {
@@ -50,16 +48,6 @@ pub struct Ast<'a> {
     pub defs: Vec<Def<'a>>,
     pub body: Term<'a>,
     pub loc: Loc<'a>,
-}
-
-impl<'a> Ast<'a> {
-    pub fn with_predef(self, predef: Predef) -> Self {
-        Ast::new(
-            self.defs,
-            Term::Predef(PredefTerm::new(predef, self.body.ptr())),
-            self.loc,
-        )
-    }
 }
 
 #[derive(Debug)]
@@ -121,25 +109,12 @@ pub struct ConTerm<'a> {
     pub loc: Loc<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub struct Opr<'a> {
     pub left: TermPtr<'a>,
     pub name: Name<'a>,
     pub right: TermPtr<'a>,
-    pub hint: Option<BinOp>,
     pub loc: Loc<'a>,
-}
-
-impl<'a> Opr<'a> {
-    pub fn new(left: TermPtr<'a>, name: Name<'a>, right: TermPtr<'a>, loc: Loc<'a>) -> Self {
-        Self {
-            left,
-            name,
-            right,
-            hint: None,
-            loc,
-        }
-    }
 }
 
 #[derive(Debug, new)]
@@ -195,12 +170,6 @@ pub struct Letrec<'a> {
     pub loc: Loc<'a>,
 }
 
-#[derive(Debug, new)]
-pub struct PredefTerm<'a> {
-    pub predef: Predef,
-    pub body: TermPtr<'a>,
-}
-
 #[derive(Debug)]
 pub enum Term<'a> {
     Empty(EmptyTerm<'a>),
@@ -215,7 +184,6 @@ pub enum Term<'a> {
     Case(Case<'a>),
     Let(Let<'a>),
     Letrec(Letrec<'a>),
-    Predef(PredefTerm<'a>),
 }
 
 impl<'a> Term<'a> {
@@ -238,8 +206,6 @@ impl<'a> Term<'a> {
             Term::Case(term) => term.loc,
             Term::Let(term) => term.loc,
             Term::Letrec(term) => term.loc,
-            // because predefined ops have no location in source code
-            Term::Predef(_) => Loc::new(""),
         }
     }
 }
@@ -289,14 +255,6 @@ impl<'a> Tpl<'a> {
             Tpl::Var(tpl) => tpl.loc,
             Tpl::Pair(tpl) => tpl.loc,
             Tpl::As(tpl) => tpl.loc,
-        }
-    }
-
-    // todo: temp
-    pub fn as_var(&self) -> Name<'a> {
-        match self {
-            Tpl::Var(x) => x.clone(),
-            _ => panic!("todo"),
         }
     }
 }

@@ -90,7 +90,6 @@ impl Ops for BinOp {
             IntPlus => Value::Int(a.as_int() + b.as_int()),
             IntMul => Value::Int(a.as_int() * b.as_int()),
             IntMinus => Value::Int(a.as_int() - b.as_int()),
-            // todo: zero division
             IntDiv => Value::Int(a.as_int() / b.as_int()),
             IntLt => Value::Int((a.as_int() < b.as_int()) as Int),
             IntLe => Value::Int((a.as_int() <= b.as_int()) as Int),
@@ -101,7 +100,6 @@ impl Ops for BinOp {
             DoublePlus => Value::Double(a.as_double() + b.as_double()),
             DoubleMul => Value::Double(a.as_double() * b.as_double()),
             DoubleMinus => Value::Double(a.as_double() - b.as_double()),
-            // todo: zero division
             DoubleDiv => Value::Double(a.as_double() / b.as_double()),
             DoubleLt => Value::Int((a.as_double() < b.as_double()) as Int),
             DoubleLe => Value::Int((a.as_double() <= b.as_double()) as Int),

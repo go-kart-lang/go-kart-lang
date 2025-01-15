@@ -1,91 +1,104 @@
-use crate::state::State;
-use gokart_core::{Tag, Tpl, Var, VarName};
-use rpds::HashTrieMap as PHashMap;
+use gokart_core::{BinOp, Counter, Exp, Pat, Predef, Tag, Var, VarName};
+use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-struct NameTable<'a> {
-    items: PHashMap<VarName<'a>, usize>,
-}
-
-impl<'a> NameTable<'a> {
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            items: PHashMap::new(),
-        }
-    }
-
-    #[inline]
-    pub fn get(&self, name: VarName<'a>) -> usize {
-        // because we check everything on verify step,
-        // so now we are confident that all names are defined
-        match self.items.get(name) {
-            Some(v) => *v,
-            None => panic!("Unable to find {}", name),
-        }
-    }
-
-    #[inline]
-    pub fn add(&self, name: VarName<'a>, idx: usize) -> Self {
-        Self {
-            items: self.items.insert(name, idx),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Ctx<'a> {
-    vars: NameTable<'a>,
-    tags: NameTable<'a>,
+    var_cnt: Counter,
+    tag_cnt: Counter,
+    vars: HashMap<VarName<'a>, Var>,
+    tags: HashMap<VarName<'a>, Tag>,
+    funcs: HashMap<Var, Exp>,
+    oprs: HashMap<VarName<'a>, BinOp>,
 }
 
 impl<'a> Ctx<'a> {
     #[inline]
-    pub fn new() -> Self {
+    pub fn with_predef() -> Self {
+        let tys = Predef::types(&mut Counter::default());
+        let mut var_cnt = Counter::default();
+        let mut funcs = HashMap::new();
+        let mut vars = HashMap::new();
+
+        for func in Predef::funcs(&tys).into_iter() {
+            let idx = var_cnt.step();
+            funcs.insert(idx, func.exp);
+            vars.insert(func.name, idx);
+        }
+
+        let oprs = Predef::oprs(&tys)
+            .into_iter()
+            .map(|opr| (opr.name, opr.bin_op))
+            .collect();
+
         Self {
-            vars: NameTable::new(),
-            tags: NameTable::new(),
+            var_cnt,
+            tag_cnt: Counter::default(),
+            vars,
+            tags: HashMap::new(),
+            funcs,
+            oprs,
         }
     }
+
+    // because we check everything on verify step, so now we are
+    // confident that all names/constructors/operations are defined
 
     #[inline]
     pub fn var(&self, name: VarName<'a>) -> Var {
-        self.vars.get(name)
+        *self.vars.get(name).unwrap()
     }
 
     #[inline]
-    pub fn add_var(&self, name: VarName<'a>, st: &mut State) -> Self {
-        Self {
-            vars: self.vars.add(name, st.next_var()),
-            tags: self.tags.clone(),
-        }
+    pub fn push_var(&mut self, name: VarName<'a>) -> Option<Var> {
+        self.vars.insert(name, self.var_cnt.step())
     }
 
-    pub fn add_tpl(&self, tpl: &Tpl<'a>, st: &mut State) -> Self {
-        match tpl {
-            Tpl::Empty(_) => self.clone(),
-            Tpl::Var(name) => self.add_var(name, st),
-            Tpl::Pair(tpl) => {
-                let x = self.add_tpl(&tpl.left, st);
-                x.add_tpl(&tpl.right, st)
-            }
-            Tpl::As(tpl) => {
-                let x = self.add_var(&tpl.name, st);
-                x.add_tpl(&tpl.tpl, st)
-            }
-        }
+    #[inline]
+    pub fn pop_var(&mut self, name: VarName<'a>, prev: Option<Var>) {
+        match prev {
+            Some(x) => self.vars.insert(name, x),
+            None => self.vars.remove(name),
+        };
+    }
+
+    #[inline]
+    pub fn push_vars(&mut self, names: &[VarName<'a>]) -> Vec<Option<Var>> {
+        names.iter().map(|name| self.push_var(name)).collect()
+    }
+
+    #[inline]
+    pub fn pop_vars(&mut self, names: &[VarName<'a>], prevs: Vec<Option<Var>>) {
+        names
+            .iter()
+            .zip(prevs)
+            .for_each(|(name, prev)| self.pop_var(name, prev))
     }
 
     #[inline]
     pub fn tag(&self, name: VarName<'a>) -> Tag {
-        self.tags.get(name)
+        *self.tags.get(name).unwrap()
     }
 
     #[inline]
-    pub fn add_tag(&self, name: VarName<'a>, st: &mut State) -> Self {
-        Self {
-            vars: self.vars.clone(),
-            tags: self.tags.add(name, st.next_tag()),
-        }
+    pub fn add_tag(&mut self, name: VarName<'a>) -> Option<Tag> {
+        self.tags.insert(name, self.tag_cnt.step())
+    }
+
+    #[inline]
+    pub fn opr(&mut self, name: VarName<'a>) -> BinOp {
+        *self.oprs.get(name).unwrap()
+    }
+
+    #[inline]
+    pub fn wrap(self, body: Exp) -> Exp {
+        let (pat, exp) =
+            self.funcs
+                .into_iter()
+                .fold((Pat::Empty, Exp::Empty), |(pat, exp), (idx, func)| {
+                    let new_pat = Pat::Pair(pat.ptr(), Pat::Var(idx).ptr());
+                    let new_exp = Exp::Pair(exp.ptr(), func.ptr());
+                    (new_pat, new_exp)
+                });
+        Exp::Let(pat, exp.ptr(), body.ptr())
     }
 }

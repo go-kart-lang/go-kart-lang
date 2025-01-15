@@ -31,8 +31,6 @@ impl VM {
         }
     }
 
-    // TODO: consider move this method to trait, because
-    // it required only in tests
     #[inline]
     pub fn cur_env(&self) -> &Value {
         self.state.cur_env()

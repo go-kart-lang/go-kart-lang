@@ -12,6 +12,7 @@ use nom::{
     branch::alt,
     character::complete::multispace0,
     combinator::{eof, map},
+    error::ParseError,
     multi::{many0, many1, separated_list0},
     sequence::tuple,
     IResult, InputTake, Offset, Parser,
@@ -20,8 +21,10 @@ use nom::{
 fn with_loc<'a, O, E, P>(mut p: P) -> impl FnMut(Loc<'a>) -> IResult<Loc<'a>, (Loc<'a>, O), E>
 where
     P: Parser<Loc<'a>, O, E>,
+    E: ParseError<Loc<'a>>,
 {
     move |i: Loc<'a>| {
+        let (i, _) = multispace0(i)?;
         let (rem, res) = p.parse(i)?;
         let loc = i.take(i.offset(&rem));
         Ok((rem, (loc, res)))

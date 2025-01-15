@@ -1,16 +1,15 @@
 use gokart_core::{BinOp, Double, GOpCode, Int, Label, NullOp, OpCode, Str, Tag, UnOp};
-use std::{io, marker::Sized};
+use std::{io, marker::Sized, string::FromUtf8Error};
 use thiserror::Error;
 
-// todo: better error messages
 #[derive(Debug, Error)]
 pub enum SerdeErr {
     #[error("Unexpected eof")]
-    UnexpectedEof,
+    UnexpectedEof(#[from] io::Error),
     #[error("Unexpected OpCode")]
     UnexpectedOpCode,
     #[error("Invalid UTF-8")]
-    InvalidUtf8,
+    InvalidUtf8(#[from] FromUtf8Error),
 }
 
 pub type SerdeRes<T> = Result<T, SerdeErr>;
@@ -44,8 +43,7 @@ impl Deserialize for u64 {
         Self: Sized,
     {
         let mut buffer = [0u8; 8];
-        r.read_exact(&mut buffer)
-            .map_err(|_| SerdeErr::UnexpectedEof)?;
+        r.read_exact(&mut buffer)?;
         Ok(Self::from_le_bytes(buffer))
     }
 }
@@ -66,8 +64,7 @@ impl Deserialize for i64 {
         Self: Sized,
     {
         let mut buffer = [0u8; 8];
-        r.read_exact(&mut buffer)
-            .map_err(|_| SerdeErr::UnexpectedEof)?;
+        r.read_exact(&mut buffer)?;
         Ok(Self::from_le_bytes(buffer))
     }
 }
@@ -107,8 +104,7 @@ impl Deserialize for u32 {
         Self: Sized,
     {
         let mut buffer = [0u8; 4];
-        r.read_exact(&mut buffer)
-            .map_err(|_| SerdeErr::UnexpectedEof)?;
+        r.read_exact(&mut buffer)?;
         Ok(Self::from_le_bytes(buffer))
     }
 }
@@ -129,8 +125,7 @@ impl Deserialize for i32 {
         Self: Sized,
     {
         let mut buffer = [0u8; 4];
-        r.read_exact(&mut buffer)
-            .map_err(|_| SerdeErr::UnexpectedEof)?;
+        r.read_exact(&mut buffer)?;
         Ok(Self::from_le_bytes(buffer))
     }
 }
@@ -153,9 +148,8 @@ impl Deserialize for Str {
     {
         let cap = usize::deserialize(r)?;
         let mut buffer = Vec::with_capacity(cap);
-        r.read_exact(&mut buffer)
-            .map_err(|_| SerdeErr::UnexpectedEof)?;
-        Self::from_utf8(buffer).map_err(|_| SerdeErr::InvalidUtf8)
+        r.read_exact(&mut buffer)?;
+        Ok(Self::from_utf8(buffer)?)
     }
 }
 
@@ -175,8 +169,7 @@ impl Deserialize for Double {
         Self: Sized,
     {
         let mut buffer = [0u8; 8];
-        r.read_exact(&mut buffer)
-            .map_err(|_| SerdeErr::UnexpectedEof)?;
+        r.read_exact(&mut buffer)?;
         Ok(Self::from_le_bytes(buffer))
     }
 }
@@ -458,7 +451,7 @@ impl Deserialize for Vec<OpCode> {
         loop {
             match OpCode::deserialize(r) {
                 Ok(x) => code.push(x),
-                Err(SerdeErr::UnexpectedEof) => return Ok(code),
+                Err(SerdeErr::UnexpectedEof(_)) => return Ok(code),
                 Err(e) => return Err(e),
             }
         }
