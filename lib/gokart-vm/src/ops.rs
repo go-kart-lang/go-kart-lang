@@ -27,11 +27,10 @@ impl Ops for UnOp {
         match self {
             Print => {
                 let val = state.cur_env().as_str();
-                println!("GOKART OUTPUT: {val}");
+                println!("{val}");
                 state.env = state.alloc(Value::Empty);
             }
             Read => {
-                print!("GOKART INPUT: ");
                 io::stdout().flush().unwrap();
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();

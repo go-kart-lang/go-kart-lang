@@ -8,5 +8,6 @@ members = [
     "lib/gokart-compile",
     "lib/gokart-serde",
     "lib/gokart-vm",
-    "lib/gokart-cli",
+    "lib/gokartc",
+    "lib/gokart",
 ]
