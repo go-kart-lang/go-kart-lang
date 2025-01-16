@@ -33,7 +33,7 @@ impl Cli {
     }
 }
 
-fn main() -> CliRes<()> {
+fn main() {
     let cli = Cli::parse();
-    cli.execute()
+    let _ = cli.execute();
 }
