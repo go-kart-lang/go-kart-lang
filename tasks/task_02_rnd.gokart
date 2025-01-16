@@ -1,0 +1,44 @@
+let inputArray = \_ ->
+  let size = s2i (read ()); in
+  let vec = viFillRandom size; in
+  vec; in
+
+let printArray = \vec ->
+  (let size = viLen vec; in
+  letrec go = \cur -> if (cur < size) then (let _ = print (i2s (viGet vec cur)); in go (cur + 1)) else (); in
+  go 0); in
+
+let merge = \l r ->
+  let vec = viFill (viLen l + viLen r) 0; in
+  letrec go = \li ri ->
+    if ((li < viLen l) * (ri < viLen r))
+        then let (lv, rv) = (viGet l li, viGet r ri); in
+            let _ = viUpdateMut vec (li + ri, if (lv < rv) then lv else rv); in
+            if (lv < rv) then go (li + 1) ri else go li (ri + 1)
+        else if (li < viLen l)
+            then
+              let _ = viUpdateMut vec (li + ri, viGet l li); in
+              go (li + 1) ri
+            else if (ri < viLen r)
+            then
+              let _ = viUpdateMut vec (li + ri, viGet r ri); in
+              go li (ri + 1)
+            else (); in
+  let _ = go 0 0; in
+  vec; in
+
+let mergeSort = \vec ->
+  letrec go = \leftIdx rightIdx ->
+    if ((rightIdx - leftIdx) == 1)
+    then viFill 1 (viGet vec leftIdx)
+    else
+      let mid = (rightIdx + leftIdx) / 2; in
+      merge (go leftIdx mid) (go mid rightIdx); in
+  go 0 (viLen vec); in
+
+let vec = inputArray (); in
+let _ = print "vec:"; in
+let _ = printArray vec; in
+let _ = print "sorted:"; in
+let _ = printArray (mergeSort vec); in
+()

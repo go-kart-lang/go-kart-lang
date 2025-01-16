@@ -4,9 +4,9 @@ use gokart_decay::decay;
 use gokart_parse::parse;
 use gokart_serde::Serialize;
 use gokart_verify::verify;
-use miette as mt;
 use std::{
     fs::{self, File},
+    io::BufWriter,
     path::PathBuf,
 };
 
@@ -20,48 +20,52 @@ struct Cli {
     output: Option<PathBuf>,
 }
 
-type CliRes<T> = Result<T, ()>;
-
 impl Cli {
-    fn execute(&self) -> CliRes<()> {
+    fn execute(&self) -> Result<(), miette::Result<()>> {
         let input = fs::read_to_string(&self.file).map_err(|e| {
             eprintln!("[ERROR]: unable to read input file");
             eprintln!("{e}");
+            Ok(())
         })?;
 
-        let ast = parse(&input).map_err(|e| {
-            let report = mt::Error::from(e).with_source_code(input.clone());
-            eprintln!("[ERROR]: unable to parse file");
-            eprintln!("{report}");
-        })?;
+        let ast = parse(&input)
+            .map_err(|e| Err(miette::Error::from(e).with_source_code(input.clone())))?;
 
-        verify(&ast).map_err(|e| {
-            let report = mt::Error::from(e).with_source_code(input.clone());
-            eprintln!("[ERROR]: unable to verify file");
-            eprintln!("{report}");
-        })?;
+        verify(&ast).map_err(|e| Err(miette::Error::from(e).with_source_code(input.clone())))?;
 
         let exp = decay(&ast);
         let code = compile(&exp);
 
+        let file_bin = self.file.with_extension("bin");
         let output = match &self.output {
-            Some(path) => path,
-            None => &self.file.with_extension(".bin"),
-        };
+            Some(path) => Ok(path.as_os_str()),
+            None => match file_bin.file_name() {
+                Some(name) => Ok(name),
+                None => {
+                    eprintln!("[ERROR]: unable to generate output filename");
+                    Err(Ok(()))
+                }
+            },
+        }?;
 
-        let mut file = File::create(output).map_err(|e| {
+        let file = File::create(output).map_err(|e| {
             eprintln!("[ERROR]: unable to open output file");
             eprintln!("{e}");
+            Ok(())
         })?;
+        let mut writer = BufWriter::new(file);
 
-        code.serialize(&mut file);
+        code.serialize(&mut writer);
 
         println!("Done");
         Ok(())
     }
 }
 
-fn main() -> CliRes<()> {
+fn main() -> miette::Result<()> {
     let cli = Cli::parse();
-    cli.execute()
+    match cli.execute() {
+        Ok(_) => Ok(()),
+        Err(e) => e,
+    }
 }

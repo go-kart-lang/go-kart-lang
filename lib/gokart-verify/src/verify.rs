@@ -88,7 +88,7 @@ impl<'a> Verify<'a> for App<'a> {
             ty => {
                 let ft = ctx.next_ft().ptr();
                 Err(VerifyErr::TypeMismatch(
-                    self.loc.into_span(),
+                    self.head.loc().into_span(),
                     Type::Func(body_ty.ptr(), ft).show(ctx),
                     ty.show(ctx),
                 ))

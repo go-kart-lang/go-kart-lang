@@ -1,9 +1,0 @@
-data Wrapper = Wrapper Int Int | Single Int
-data Another = Another Str
-
-let
-	f = \x -> case x of
-		| Wrapper (x, y) -> x;
-		| Single x -> i2s x;
-; in
-f Single(5)

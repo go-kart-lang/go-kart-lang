@@ -135,8 +135,9 @@ impl Serialize for Str {
     where
         W: io::Write,
     {
-        self.len().serialize(w);
-        let _ = w.write(self.as_bytes());
+        let bytes = self.as_bytes();
+        bytes.len().serialize(w);
+        let _ = w.write(bytes);
     }
 }
 
@@ -147,7 +148,7 @@ impl Deserialize for Str {
         Self: Sized,
     {
         let cap = usize::deserialize(r)?;
-        let mut buffer = Vec::with_capacity(cap);
+        let mut buffer = vec![0; cap];
         r.read_exact(&mut buffer)?;
         Ok(Self::from_utf8(buffer)?)
     }
@@ -228,6 +229,7 @@ impl Serialize for UnOp {
             Double2Int => 7,
             Int2Double => 8,
             VectorIntLength => 9,
+            VectorIntFillRandom => 10,
         };
         tag.serialize(w);
     }
@@ -251,6 +253,7 @@ impl Deserialize for UnOp {
             7 => Ok(Double2Int),
             8 => Ok(Int2Double),
             9 => Ok(VectorIntLength),
+            10 => Ok(VectorIntFillRandom),
             _ => Err(SerdeErr::UnexpectedOpCode),
         }
     }
@@ -392,7 +395,7 @@ impl Serialize for OpCode {
     }
 }
 
-impl Deserialize for crate::OpCode {
+impl Deserialize for OpCode {
     fn deserialize<R>(r: &mut R) -> SerdeRes<Self>
     where
         R: io::Read,
@@ -413,7 +416,7 @@ impl Deserialize for crate::OpCode {
             10 => Ok(Clear),
             11 => Ok(Cons),
             12 => Ok(App),
-            13 => Label::deserialize(r).map(Pack),
+            13 => Tag::deserialize(r).map(Pack),
             14 => Ok(Skip),
             15 => Ok(Stop),
             16 => Label::deserialize(r).map(Call),

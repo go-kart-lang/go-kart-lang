@@ -73,6 +73,7 @@ impl Predef {
             un_func("d2i", Double2Int, &double_ty, &int_ty),
             un_func("i2d", Int2Double, &int_ty, &double_ty),
             un_func("viLen", VectorIntLength, &vi_ty, &int_ty),
+            un_func("viFillRandom", VectorIntFillRandom, &int_ty, &vi_ty),
             bin_func("viFill", VectorIntFill, &int_ty, &int_ty, &vi_ty),
             bin_func("viGet", VectorIntGet, &vi_ty, &int_ty, &int_ty),
             tern_func(
