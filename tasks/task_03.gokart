@@ -1,6 +1,26 @@
-letrec printArray = \vec cur -> if (cur < viLen vec) then (let _ = if (viGet vec cur == 1) then print (i2s cur) else (); in printArray vec (cur + 1)) else (); in
-letrec mark = \vec step cur -> if (cur < viLen vec) then mark (viUpdate vec (cur, 0)) step (cur + step) else vec; in
-letrec algo = \vec cur -> if (cur * cur >= viLen vec) then vec else (algo (if (viGet vec cur == 1) then mark vec cur (cur * 2) else vec) (cur + 1)); in
-let size = s2i (read ()); in
+letrec printArray = \vec cur ->
+  if (cur < viLen vec)
+  then (let _ = if (viGet vec cur == 1) then print (i2s cur) else (); in printArray vec (cur + 1))
+  else (); in
+
+letrec mark = \vec step cur ->
+  if (cur < viLen vec)
+  then mark (viUpdate vec (cur, 0)) step (cur + step)
+  else vec; in
+
+letrec algo = \vec cur ->
+  if (cur * cur >= viLen vec)
+  then vec
+  else (algo (if (viGet vec cur == 1) then mark vec cur (cur * 2) else vec) (cur + 1)); in
+
+letrec getValidInput = \_ ->
+  let size = s2i (read ()); in
+  if size >= 2
+  then size
+  else
+    let _ = print "Please enter a number greater than or equal to 2. There are no prime numbers below 2."; in
+    getValidInput (); in
+
+let size = getValidInput (); in
 let vec = viFill (size + 1) 1; in
 printArray (algo vec 2) 2
