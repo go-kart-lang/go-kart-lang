@@ -165,11 +165,40 @@ fn make_labels(ctx: &mut Ctx) -> Vec<Label> {
         idx += 1;
 
         res.push(ctx.code.len());
-        exp.compile(ctx, env.clone());
-        ctx.code.push_back(VOpCode::Return);
+        r_compile(exp, ctx, env.clone());
     }
 
     res
+}
+
+fn r_compile<'a>(exp: &'a Exp, ctx: &mut Ctx<'a>, env: Env<'a>) {
+    match exp {
+        Exp::Cond(cond, left, right) => {
+            ctx.code.push_back(VOpCode::Push);
+            cond.compile(ctx, env.clone());
+
+            let gtf_idx = ctx.code.push_dummy();
+
+            r_compile(left, ctx, env.clone());
+
+            let gt_idx = ctx.code.push_dummy();
+            ctx.code[gtf_idx] = VOpCode::GotoFalse(ctx.code.cur_label());
+
+            r_compile(right, ctx, env);
+            ctx.code[gt_idx] = VOpCode::Goto(ctx.code.cur_label());
+        }
+        c => {
+            c.compile(ctx, env.clone());
+
+            let len = ctx.code.items.len() - 1;
+            if let VOpCode::Call(l) = ctx.code.items[len] {
+                ctx.code.items[len] = VOpCode::Goto(l);
+            } else {
+                ctx.code.push_back(VOpCode::Return);
+            }
+            ctx.code.push_back(VOpCode::Return);
+        }
+    }
 }
 
 pub fn compile(exp: &Exp) -> Vec<OpCode> {
