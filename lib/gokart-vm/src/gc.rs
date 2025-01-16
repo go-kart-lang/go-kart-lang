@@ -42,7 +42,7 @@ impl GC {
 
 impl Default for GC {
     fn default() -> Self {
-        Self::new(10_000)
+        Self::new(100_000)
     }
 }
 
