@@ -1,5 +1,12 @@
 let inputArray = \_ ->
-  let size = s2i (read ()); in
+  letrec getSize = \_ ->
+    let size = s2i (read ()); in
+    if size > 0
+    then size
+    else
+      let _ = print "You must input a value greater than 0"; in
+      getSize (); in
+  let size = getSize (); in
   let vec = viFillRandom size; in
   vec; in
 
