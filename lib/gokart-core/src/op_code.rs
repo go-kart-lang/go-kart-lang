@@ -18,6 +18,7 @@ pub enum UnOp {
     Double2Int,
     Int2Double,
     VectorIntLength,
+    VectorIntFillRandom,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

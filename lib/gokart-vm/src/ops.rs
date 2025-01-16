@@ -1,7 +1,10 @@
-use std::io::{self, Write};
-
 use crate::{state::State, value::Value};
 use gokart_core::{BinOp, GOpCode, Int, NullOp, OpCode, UnOp};
+use rand::Rng;
+use std::{
+    io::{self, Write},
+    iter,
+};
 
 pub trait Ops {
     fn execute(&self, state: &mut State);
@@ -71,6 +74,14 @@ impl Ops for UnOp {
             VectorIntLength => {
                 state.env = state.alloc(Value::Int(state.cur_env().as_vector_int().len() as Int))
             }
+            VectorIntFillRandom => {
+                let size = state.cur_env().as_int();
+                let mut vec = rpds::Vector::new();
+                let mut rng = rand::thread_rng();
+                vec.extend((0..size).map(|_| rng.gen::<i64>()));
+
+                state.env = state.alloc(Value::VectorInt(vec));
+            }
         }
         state.ip += 1;
     }
@@ -113,7 +124,7 @@ impl Ops for BinOp {
                 let size = a.as_int();
                 let val = b.as_int();
                 let mut vec = rpds::Vector::new();
-                vec.extend(std::iter::repeat(val).take(size as usize));
+                vec.extend(iter::repeat(val).take(size as usize));
                 Value::VectorInt(vec)
             }
             VectorIntGet => Value::Int(*a.as_vector_int().get(b.as_int() as usize).unwrap()),

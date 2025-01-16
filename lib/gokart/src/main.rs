@@ -2,7 +2,7 @@ use clap::Parser;
 use gokart_core::OpCode;
 use gokart_serde::Deserialize;
 use gokart_vm::{GC, VM};
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, io::BufReader, path::PathBuf};
 
 #[derive(Parser)]
 #[command(name = "gokart")]
@@ -15,12 +15,13 @@ type CliRes<T> = Result<T, ()>;
 
 impl Cli {
     fn execute(&self) -> CliRes<()> {
-        let mut file = File::create(&self.file).map_err(|e| {
+        let file = File::open(&self.file).map_err(|e| {
             eprintln!("[ERROR]: unable to open input file");
             eprintln!("{e}");
         })?;
+        let mut reader = BufReader::new(file);
 
-        let code = Vec::<OpCode>::deserialize(&mut file).map_err(|e| {
+        let code = Vec::<OpCode>::deserialize(&mut reader).map_err(|e| {
             eprintln!("[ERROR]: unable to deserialize input file");
             eprintln!("{e}");
         })?;
