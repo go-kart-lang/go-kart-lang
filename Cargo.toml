@@ -10,4 +10,5 @@ members = [
     "lib/gokart-vm",
     "lib/gokartc",
     "lib/gokart",
+    "lib/gokart-gc",
 ]

@@ -28,6 +28,7 @@ impl Cli {
 
         let mut vm = VM::new(code, GC::default());
         vm.run();
+        vm.cleanup();
 
         Ok(())
     }

@@ -1,81 +1,31 @@
-use gokart_core::{Double, Int, Label, Str, Tag};
+use gokart_gc;
 
-pub type Ref = u32;
+pub type Ref = *mut gokart_gc::gokart_value;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Value {
-    Empty,
-    Int(Int),
-    Double(Double),
-    Str(Str),
-    VectorInt(rpds::Vector<Int>),
-    Label(Label),
-    Pair(Ref, Ref),
-    Tagged(Tag, Ref),
-    Closure(Ref, Label),
+#[repr(C)]
+pub struct GValue<T> {
+    pub inner: gokart_gc::gokart_value,
+    pub data: T,
 }
 
-impl Value {
-    pub fn as_int(&self) -> Int {
-        match self {
-            Value::Int(val) => *val,
-            _ => panic!("Expected Value::Int"),
-        }
-    }
+pub fn gvalue_cast<T>(ptr: Ref) -> &'static mut T {
+    &mut unsafe { &mut *(ptr as *mut GValue<T>) }.data
+}
 
-    pub fn as_double(&self) -> Double {
-        match self {
-            Value::Double(val) => *val,
-            _ => panic!("Expected Value::Double"),
-        }
-    }
+pub fn get_tag(ptr: Ref) -> ValueTag {
+    unsafe { std::mem::transmute(gokart_gc::gokart_get_tag(ptr)) }
+}
 
-    pub fn as_str(&self) -> &Str {
-        match self {
-            Value::Str(val) => val,
-            _ => panic!("Expected Value::Str"),
-        }
-    }
+pub const RESERVED_TAG: u64 = 0xffff;
 
-    pub fn as_vector_int(&self) -> &rpds::Vector<Int> {
-        match self {
-            Value::VectorInt(val) => val,
-            _ => panic!("Expected Value::VectorInt"),
-        }
-    }
-
-    pub fn as_vector_int_mut(&mut self) -> &mut rpds::Vector<Int> {
-        match self {
-            Value::VectorInt(val) => val,
-            _ => panic!("Expected Value::VectorInt"),
-        }
-    }
-
-    pub fn as_label(&self) -> Label {
-        match self {
-            Value::Label(label) => *label,
-            _ => panic!("Expected Value::Label"),
-        }
-    }
-
-    pub fn as_pair(&self) -> (Ref, Ref) {
-        match self {
-            Value::Pair(left, right) => (*left, *right),
-            _ => panic!("Expected Value::Pair"),
-        }
-    }
-
-    pub fn as_tagged(&self) -> (Tag, Ref) {
-        match self {
-            Value::Tagged(tag, r) => (*tag, *r),
-            _ => panic!("Expected Value::Tagged"),
-        }
-    }
-
-    pub fn as_closure(&self) -> (Ref, Label) {
-        match self {
-            Value::Closure(r, label) => (*r, *label),
-            _ => panic!("Expected Value::Closure"),
-        }
-    }
+#[repr(u64)]
+pub enum ValueTag {
+    IntTag = RESERVED_TAG,
+    DoubleTag,
+    StrTag,
+    VectorInt,
+    Label,
+    Pair,
+    Tagged,
+    Closure,
 }

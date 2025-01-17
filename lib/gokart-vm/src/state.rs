@@ -1,7 +1,4 @@
-use crate::{
-    heap::Heap,
-    value::{Ref, Value},
-};
+use crate::{heap::Heap, value::Ref};
 use core::slice;
 use gokart_core::Label;
 
@@ -15,35 +12,15 @@ pub struct State {
 }
 
 impl State {
-    pub fn init_with<F>(f: F) -> Self
-    where
-        F: Fn(&mut Heap) -> Ref,
-    {
-        let mut heap = Heap::default();
-        let env = f(&mut heap);
+    pub fn new() -> Self {
+        let heap = Heap::new();
         Self {
             ip: 0,
             is_running: true,
             heap,
-            env,
+            env: std::ptr::null_mut(),
             stack: Stack::new(),
         }
-    }
-
-    #[inline]
-    pub fn cur_env(&self) -> &Value {
-        &self.heap[self.env]
-    }
-
-    #[inline]
-    pub fn alloc(&mut self, val: Value) -> Ref {
-        self.heap.alloc(val)
-    }
-}
-
-impl Default for State {
-    fn default() -> Self {
-        State::init_with(|h| h.alloc(Value::Empty))
     }
 }
 
@@ -55,7 +32,9 @@ pub struct Stack<T> {
 impl<T> Stack<T> {
     #[inline]
     pub fn new() -> Self {
-        Self { data: Vec::new() }
+        Self {
+            data: Vec::with_capacity(10_000),
+        }
     }
 
     #[inline]
@@ -71,5 +50,9 @@ impl<T> Stack<T> {
     #[inline]
     pub fn iter(&self) -> slice::Iter<'_, T> {
         self.data.iter()
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear()
     }
 }
