@@ -1,0 +1,9 @@
+let constantFolding = \x ->
+  if ((2 + 2) == 4) then x
+  else (
+    if ((2 + (2 * 2)) == 6) then x
+    else -999
+  ); in
+
+let x = s2i (read ()); in
+let _ = print (i2s (constantFolding x)); in ()
