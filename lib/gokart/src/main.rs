@@ -1,7 +1,7 @@
 use clap::Parser;
 use gokart_core::OpCode;
 use gokart_serde::Deserialize;
-use gokart_vm::{GC, VM};
+use gokart_vm::{ConstantFolding, DeadCodeElimination, Optimization, TailCallOptimization, GC, VM};
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 #[derive(Parser)]
@@ -26,7 +26,16 @@ impl Cli {
             eprintln!("{e}");
         })?;
 
-        let mut vm = VM::new(code, GC::default());
+        // println!("{:?}", code);
+
+        let optimizations: Vec<Box<dyn Optimization>> = vec![
+            Box::new(TailCallOptimization),
+            // Box::new(DeadCodeElimination),
+            Box::new(ConstantFolding),
+        ];
+
+        let mut vm = VM::new(code, GC::default(), optimizations);
+
         vm.run();
         vm.cleanup();
 

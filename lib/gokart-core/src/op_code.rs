@@ -52,7 +52,7 @@ pub enum BinOp {
     VectorIntUpdateMut,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum GOpCode<L> {
     Acc(u32),
     Rest(u32),

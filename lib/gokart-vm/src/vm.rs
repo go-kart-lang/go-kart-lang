@@ -1,29 +1,60 @@
 use crate::ops::Ops;
 use crate::{state::State, GC};
 use gokart_core::OpCode;
+use crate::jit::Optimization;
 
 pub struct VM {
     pub state: State,
-    code: Vec<OpCode>,
+    pub(crate) code: Vec<OpCode>,
     gc: GC,
+    optimizations: Vec<Box<dyn Optimization>>,
 }
 
 impl VM {
     #[inline]
-    pub fn new(code: Vec<OpCode>, gc: GC) -> Self {
-        Self::from_state(State::new(), code, gc)
+    pub fn new(code: Vec<OpCode>, gc: GC, optimizations: Vec<Box<dyn Optimization>>) -> Self {
+        Self::from_state(State::new(), code, gc, optimizations)
     }
 
     #[inline]
-    pub fn from_state(state: State, code: Vec<OpCode>, gc: GC) -> Self {
-        Self { state, code, gc }
+    pub fn from_state(state: State, code: Vec<OpCode>, gc: GC, optimizations: Vec<Box<dyn Optimization>>) -> Self {
+        Self { state, code, gc, optimizations }
     }
 
     #[inline]
     pub fn run(&mut self) {
         while self.state.is_running {
-            self.code[self.state.ip].execute(&mut self.state);
+            // println!("Executing instruction at IP {}: {:?}", self.state.ip, self.code[self.state.ip]);
 
+            // Check for optimizations
+            let mut optimized = false;
+
+            for opt in &self.optimizations {
+                if opt.can_apply(self) {
+                    // println!("Applying optimization for: {:?}", self.code[self.state.ip]);
+
+                    let (optimized_code, skip) = opt.apply(self);
+
+                    let old_ip = self.state.ip;
+
+                    // Replace the current instruction with the optimized one
+                    for (offset, op) in optimized_code.into_iter().enumerate() {
+                        op.execute(&mut self.state);
+                        self.code[self.state.ip + offset] = op;
+                    }
+
+                    // Move the instruction pointer ahead by the number of optimized instructions
+                    self.state.ip = old_ip + skip;
+                    optimized = true;
+                    break;
+                }
+            }
+
+            if !optimized {
+                self.code[self.state.ip].execute(&mut self.state);
+            }
+
+            // Garbage collection check
             if self.gc.is_necessary(&self.state) {
                 self.gc.cleanup(&mut self.state);
             }
@@ -67,7 +98,7 @@ mod tests {
         state.env = state.heap.allocate_pair(state.env, num);
 
         let gc = GC::new(10_000, 10_000);
-        let mut vm = VM::from_state(state, code, gc);
+        let mut vm = VM::from_state(state, code, gc, vec![]);
 
         vm.run();
 
@@ -118,7 +149,7 @@ mod tests {
             Return,
         ]);
         let gc = GC::new(10_000, 10_000);
-        let mut vm = VM::new(code, gc);
+        let mut vm = VM::new(code, gc, vec![]);
 
         vm.run();
         let res = *gvalue_cast::<Int>(vm.state.env);
