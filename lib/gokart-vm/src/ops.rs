@@ -1,5 +1,8 @@
-use crate::{state::State, value::Value};
-use gokart_core::{BinOp, GOpCode, Int, NullOp, OpCode, UnOp};
+use crate::{
+    state::State,
+    value::{gvalue_cast, Ref},
+};
+use gokart_core::{BinOp, Double, GOpCode, Int, Label, NullOp, OpCode, Str, Tag, UnOp};
 use rand::Rng;
 use std::{
     io::{self, Write},
@@ -13,12 +16,12 @@ pub trait Ops {
 impl Ops for NullOp {
     fn execute(&self, state: &mut State) {
         use NullOp::*;
-        let val = match self {
-            IntLit(val) => Value::Int(*val),
-            DoubleLit(val) => Value::Double(*val),
-            StrLit(val) => Value::Str(val.clone()),
+        let ptr = match self {
+            IntLit(val) => state.heap.allocate_int(*val),
+            DoubleLit(val) => state.heap.allocate_double(*val),
+            StrLit(val) => state.heap.allocate_str(val.clone()),
         };
-        state.env = state.alloc(val);
+        state.env = ptr;
         state.ip += 1;
     }
 }
@@ -29,58 +32,59 @@ impl Ops for UnOp {
 
         match self {
             Print => {
-                let val = state.cur_env().as_str();
+                let val = gvalue_cast::<Str>(state.env);
                 println!("{val}");
-                state.env = state.alloc(Value::Empty);
+                state.env = std::ptr::null_mut();
             }
             Read => {
                 io::stdout().flush().unwrap();
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
-                state.env = state.alloc(Value::Str(input.trim().into()));
+                state.env = state.heap.allocate_str(input.trim().into());
             }
             Int2Str => {
-                let val = state.cur_env().as_int();
-                state.env = state.alloc(Value::Str(val.to_string()))
+                let val = gvalue_cast::<Int>(state.env);
+                state.env = state.heap.allocate_str(val.to_string());
             }
             Str2Int => {
-                let val = state.cur_env().as_str();
+                let val = gvalue_cast::<Str>(state.env);
                 let res = match val.parse::<i64>() {
                     Ok(x) => x,
                     Err(e) => panic!("Error at Str('{val}') to Int conversion: {e}"),
                 };
-                state.env = state.alloc(Value::Int(res));
+                state.env = state.heap.allocate_int(res);
             }
             Double2Str => {
-                let val = state.cur_env().as_double();
-                state.env = state.alloc(Value::Str(val.to_string()))
+                let val = gvalue_cast::<Double>(state.env);
+                state.env = state.heap.allocate_str(val.to_string());
             }
             Str2Double => {
-                let val = state.cur_env().as_str();
+                let val = gvalue_cast::<Str>(state.env);
                 let res = match val.parse::<f64>() {
                     Ok(x) => x,
                     Err(e) => panic!("Error at Str('{val}') to Double conversion: {e}"),
                 };
-                state.env = state.alloc(Value::Double(res));
+                state.env = state.heap.allocate_double(res);
             }
             Double2Int => {
-                let val = state.cur_env().as_double();
-                state.env = state.alloc(Value::Int(val as i64))
+                let val = gvalue_cast::<Double>(state.env);
+                state.env = state.heap.allocate_int(*val as Int);
             }
             Int2Double => {
-                let val = state.cur_env().as_int();
-                state.env = state.alloc(Value::Double(val as f64))
+                let val = gvalue_cast::<Int>(state.env);
+                state.env = state.heap.allocate_double(*val as Double);
             }
             VectorIntLength => {
-                state.env = state.alloc(Value::Int(state.cur_env().as_vector_int().len() as Int))
+                let val = gvalue_cast::<rpds::Vector<Int>>(state.env);
+                state.env = state.heap.allocate_int(val.len() as Int);
             }
             VectorIntFillRandom => {
-                let size = state.cur_env().as_int();
+                let size = *gvalue_cast::<Int>(state.env);
                 let mut vec = rpds::Vector::new();
                 let mut rng = rand::thread_rng();
                 vec.extend((0..size).map(|_| rng.gen::<i64>()));
 
-                state.env = state.alloc(Value::VectorInt(vec));
+                state.env = state.heap.allocate_vector_int(vec);
             }
         }
         state.ip += 1;
@@ -93,62 +97,153 @@ impl Ops for BinOp {
 
         let a_ref = state.stack.pop();
         let b_ref = state.env;
-        let a = &state.heap[a_ref];
-        let b = &state.heap[b_ref];
 
         let val = match self {
-            IntPlus => Value::Int(a.as_int() + b.as_int()),
-            IntMul => Value::Int(a.as_int() * b.as_int()),
-            IntMinus => Value::Int(a.as_int() - b.as_int()),
-            IntDiv => Value::Int(a.as_int() / b.as_int()),
-            IntLt => Value::Int((a.as_int() < b.as_int()) as Int),
-            IntLe => Value::Int((a.as_int() <= b.as_int()) as Int),
-            IntEq => Value::Int((a.as_int() == b.as_int()) as Int),
-            IntNe => Value::Int((a.as_int() != b.as_int()) as Int),
-            IntGt => Value::Int((a.as_int() > b.as_int()) as Int),
-            IntGe => Value::Int((a.as_int() >= b.as_int()) as Int),
-            DoublePlus => Value::Double(a.as_double() + b.as_double()),
-            DoubleMul => Value::Double(a.as_double() * b.as_double()),
-            DoubleMinus => Value::Double(a.as_double() - b.as_double()),
-            DoubleDiv => Value::Double(a.as_double() / b.as_double()),
-            DoubleLt => Value::Int((a.as_double() < b.as_double()) as Int),
-            DoubleLe => Value::Int((a.as_double() <= b.as_double()) as Int),
-            DoubleEq => Value::Int((a.as_double() == b.as_double()) as Int),
-            DoubleNe => Value::Int((a.as_double() != b.as_double()) as Int),
-            DoubleGt => Value::Int((a.as_double() > b.as_double()) as Int),
-            DoubleGe => Value::Int((a.as_double() >= b.as_double()) as Int),
-            StrPlus => Value::Str(a.as_str().to_owned() + b.as_str()),
-            StrEq => Value::Int((a.as_str() == b.as_str()) as Int),
-            StrNe => Value::Int((a.as_str() != b.as_str()) as Int),
+            IntPlus => {
+                state.env = state
+                    .heap
+                    .allocate_int(*gvalue_cast::<Int>(a_ref) + *gvalue_cast::<Int>(b_ref));
+            }
+            IntMul => {
+                state.env = state
+                    .heap
+                    .allocate_int(*gvalue_cast::<Int>(a_ref) * *gvalue_cast::<Int>(b_ref));
+            }
+            IntMinus => {
+                state.env = state
+                    .heap
+                    .allocate_int(*gvalue_cast::<Int>(a_ref) - *gvalue_cast::<Int>(b_ref));
+            }
+            IntDiv => {
+                state.env = state
+                    .heap
+                    .allocate_int(*gvalue_cast::<Int>(a_ref) / *gvalue_cast::<Int>(b_ref));
+            }
+            IntLt => {
+                state.env = state
+                    .heap
+                    .allocate_int((*gvalue_cast::<Int>(a_ref) < *gvalue_cast::<Int>(b_ref)) as Int);
+            }
+            IntLe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Int>(a_ref) <= *gvalue_cast::<Int>(b_ref)) as Int,
+                );
+            }
+            IntEq => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Int>(a_ref) == *gvalue_cast::<Int>(b_ref)) as Int,
+                );
+            }
+            IntNe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Int>(a_ref) != *gvalue_cast::<Int>(b_ref)) as Int,
+                );
+            }
+            IntGt => {
+                state.env = state
+                    .heap
+                    .allocate_int((*gvalue_cast::<Int>(a_ref) > *gvalue_cast::<Int>(b_ref)) as Int);
+            }
+            IntGe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Int>(a_ref) >= *gvalue_cast::<Int>(b_ref)) as Int,
+                );
+            }
+            DoublePlus => {
+                state.env = state
+                    .heap
+                    .allocate_double(*gvalue_cast::<Double>(a_ref) + *gvalue_cast::<Double>(b_ref));
+            }
+            DoubleMul => {
+                state.env = state
+                    .heap
+                    .allocate_double(*gvalue_cast::<Double>(a_ref) * *gvalue_cast::<Double>(b_ref));
+            }
+            DoubleMinus => {
+                state.env = state
+                    .heap
+                    .allocate_double(*gvalue_cast::<Double>(a_ref) - *gvalue_cast::<Double>(b_ref));
+            }
+            DoubleDiv => {
+                state.env = state
+                    .heap
+                    .allocate_double(*gvalue_cast::<Double>(a_ref) / *gvalue_cast::<Double>(b_ref));
+            }
+            DoubleLt => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Double>(a_ref) < *gvalue_cast::<Double>(b_ref)) as Int,
+                );
+            }
+            DoubleLe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Double>(a_ref) <= *gvalue_cast::<Double>(b_ref)) as Int,
+                );
+            }
+            DoubleEq => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Double>(a_ref) == *gvalue_cast::<Double>(b_ref)) as Int,
+                );
+            }
+            DoubleNe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Double>(a_ref) != *gvalue_cast::<Double>(b_ref)) as Int,
+                );
+            }
+            DoubleGt => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Double>(a_ref) > *gvalue_cast::<Double>(b_ref)) as Int,
+                );
+            }
+            DoubleGe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<Double>(a_ref) >= *gvalue_cast::<Double>(b_ref)) as Int,
+                );
+            }
+            StrPlus => {
+                let a_str = gvalue_cast::<String>(a_ref);
+                let b_str = gvalue_cast::<String>(b_ref);
+                state.env = state.heap.allocate_str(a_str.to_owned() + b_str);
+            }
+            StrEq => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<String>(a_ref) == *gvalue_cast::<String>(b_ref)) as Int,
+                );
+            }
+            StrNe => {
+                state.env = state.heap.allocate_int(
+                    (*gvalue_cast::<String>(a_ref) != *gvalue_cast::<String>(b_ref)) as Int,
+                );
+            }
             VectorIntFill => {
-                let size = a.as_int();
-                let val = b.as_int();
+                let size = *gvalue_cast::<Int>(a_ref);
+                let val = *gvalue_cast::<Int>(b_ref);
                 let mut vec = rpds::Vector::new();
                 vec.extend(iter::repeat(val).take(size as usize));
-                Value::VectorInt(vec)
+                state.env = state.heap.allocate_vector_int(vec);
             }
-            VectorIntGet => Value::Int(*a.as_vector_int().get(b.as_int() as usize).unwrap()),
+            VectorIntGet => {
+                let vec = gvalue_cast::<rpds::Vector<Int>>(a_ref);
+                let idx = *gvalue_cast::<Int>(b_ref) as usize;
+                let val = *vec.get(idx).unwrap();
+                state.env = state.heap.allocate_int(val);
+            }
             VectorIntUpdate => {
-                let (idx_ref, v_ref) = b.as_pair();
-                let idx = state.heap[idx_ref].as_int();
-                let v = state.heap[v_ref].as_int();
-                Value::VectorInt(a.as_vector_int().set(idx as usize, v).unwrap())
+                let vec = gvalue_cast::<rpds::Vector<Int>>(a_ref);
+                let (idx_ref, v_ref) = *gvalue_cast::<(Ref, Ref)>(b_ref);
+                let idx = *gvalue_cast::<Int>(idx_ref) as usize;
+                let v = *gvalue_cast::<Int>(v_ref);
+                state.env = state.heap.allocate_vector_int(vec.set(idx, v).unwrap());
             }
             VectorIntUpdateMut => {
-                let (idx_ref, v_ref) = b.as_pair();
-                let idx = state.heap[idx_ref].as_int();
-                let v = state.heap[v_ref].as_int();
+                let vec = gvalue_cast::<rpds::Vector<Int>>(a_ref);
+                let (idx_ref, v_ref) = *gvalue_cast::<(Ref, Ref)>(b_ref);
+                let idx = *gvalue_cast::<Int>(idx_ref) as usize;
+                let v = *gvalue_cast::<Int>(v_ref);
 
-                state
-                    .heap
-                    .index_mut(a_ref)
-                    .as_vector_int_mut()
-                    .set_mut(idx as usize, v);
-                Value::Empty
+                vec.set_mut(idx, v);
             }
         };
 
-        state.env = state.alloc(val);
         state.ip += 1;
     }
 }
@@ -161,14 +256,14 @@ impl Ops for OpCode {
         match self {
             Acc(n) => {
                 for _ in 0..*n {
-                    state.env = state.cur_env().as_pair().0
+                    state.env = gvalue_cast::<(Ref, Ref)>(state.env).0
                 }
-                state.env = state.cur_env().as_pair().1;
+                state.env = gvalue_cast::<(Ref, Ref)>(state.env).1;
                 state.ip += 1;
             }
             Rest(n) => {
                 for _ in 0..*n {
-                    state.env = state.cur_env().as_pair().0
+                    state.env = gvalue_cast::<(Ref, Ref)>(state.env).0
                 }
                 state.ip += 1;
             }
@@ -186,35 +281,34 @@ impl Ops for OpCode {
             Sys1(op) => op.execute(state),
             Sys2(op) => op.execute(state),
             Cur(label) => {
-                let closure = Value::Closure(state.env, *label);
-                state.env = state.alloc(closure);
+                state.env = state.heap.allocate_closure(state.env, *label);
                 state.ip += 1;
             }
             Return => {
                 let r = state.stack.pop();
-                state.ip = state.heap[r].as_label();
+                state.ip = *gvalue_cast::<Label>(r);
             }
             Clear => {
-                state.env = state.alloc(Value::Empty);
+                state.env = std::ptr::null_mut();
                 state.ip += 1;
             }
             Cons => {
                 let a = state.stack.pop();
                 let b = state.env;
-                state.env = state.alloc(Value::Pair(a, b));
+                state.env = state.heap.allocate_pair(a, b);
                 state.ip += 1;
             }
             App => {
                 let b = state.stack.pop();
-                let (a, label) = state.cur_env().as_closure();
-                state.env = state.alloc(Value::Pair(a, b));
+                let (a, label) = gvalue_cast::<(Ref, Label)>(state.env);
+                state.env = state.heap.allocate_pair(*a, b);
 
-                let r = state.alloc(Value::Label(state.ip + 1));
+                let r = state.heap.allocate_label(state.ip + 1);
                 state.stack.push(r);
-                state.ip = label;
+                state.ip = *label;
             }
             Pack(tag) => {
-                state.env = state.alloc(Value::Tagged(*tag, state.env));
+                state.env = state.heap.allocate_tagged(*tag, state.env);
                 state.ip += 1;
             }
             Skip => {
@@ -224,25 +318,25 @@ impl Ops for OpCode {
                 state.is_running = false;
             }
             Call(label) => {
-                let r = state.alloc(Value::Label(state.ip + 1));
+                let r = state.heap.allocate_label(state.ip + 1);
                 state.stack.push(r);
                 state.ip = *label;
             }
             GotoFalse(label) => {
                 let new_env = state.stack.pop();
-                let b = state.cur_env().as_int();
+                let b = gvalue_cast::<Int>(state.env);
                 state.env = new_env;
-                if b == 0 {
+                if *b == 0 {
                     state.ip = *label;
                 } else {
                     state.ip += 1;
                 }
             }
             Switch(tag, label) => {
-                let (cur_tag, b) = state.cur_env().as_tagged();
-                if cur_tag == *tag {
+                let (cur_tag, b) = gvalue_cast::<(Tag, Ref)>(state.env);
+                if *cur_tag == *tag {
                     let a = state.stack.pop();
-                    state.env = state.alloc(Value::Pair(a, b));
+                    state.env = state.heap.allocate_pair(a, *b);
                     state.ip = *label;
                 } else {
                     state.ip += 1;

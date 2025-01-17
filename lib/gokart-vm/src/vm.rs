@@ -1,10 +1,9 @@
 use crate::ops::Ops;
-use crate::value::Value;
 use crate::{state::State, GC};
 use gokart_core::OpCode;
 
 pub struct VM {
-    state: State,
+    pub state: State,
     code: Vec<OpCode>,
     gc: GC,
 }
@@ -12,7 +11,7 @@ pub struct VM {
 impl VM {
     #[inline]
     pub fn new(code: Vec<OpCode>, gc: GC) -> Self {
-        Self::from_state(State::default(), code, gc)
+        Self::from_state(State::new(), code, gc)
     }
 
     #[inline]
@@ -31,14 +30,17 @@ impl VM {
         }
     }
 
-    #[inline]
-    pub fn cur_env(&self) -> &Value {
-        self.state.cur_env()
+    pub fn cleanup(&mut self) {
+        self.state.env = std::ptr::null_mut();
+        self.state.stack.clear();
+        self.gc.cleanup(&mut self.state);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::value::gvalue_cast;
+
     use super::*;
     use gokart_core::{BinOp, GOpCode, Int, NullOp};
     use GOpCode::*;
@@ -59,18 +61,24 @@ mod tests {
             Sys2(BinOp::IntPlus),
             Return,
         ]);
-        let state = State::init_with(|h| {
-            let p1 = h.alloc(Value::Empty);
-            let p2 = h.alloc(Value::Int(1));
-            h.alloc(Value::Pair(p1, p2))
-        });
-        let gc = GC::new(10_000);
+
+        let mut state = State::new();
+        let num = state.heap.allocate_int(1);
+        state.env = state.heap.allocate_pair(state.env, num);
+
+        let gc = GC::new(10_000, 10_000);
         let mut vm = VM::from_state(state, code, gc);
 
         vm.run();
-        let res = vm.cur_env();
 
-        assert_eq!(&Value::Int(5), res, "Expect Value::Int(5)");
+        let result = *gvalue_cast::<Int>(vm.state.env);
+
+        assert_eq!(result, 5, "Expected 5");
+
+        vm.cleanup();
+
+        assert_eq!(vm.state.heap.bytes_allocated(), 0, "Expected empty heap");
+        assert_eq!(vm.state.heap.objects_allocated(), 0, "Expected empty heap");
     }
 
     fn even_program(n: Int, expected: Int) {
@@ -109,17 +117,21 @@ mod tests {
             Sys2(BinOp::IntMinus),
             Return,
         ]);
-        let gc = GC::new(10_000);
+        let gc = GC::new(10_000, 10_000);
         let mut vm = VM::new(code, gc);
 
         vm.run();
-        let res = vm.cur_env();
+        let res = *gvalue_cast::<Int>(vm.state.env);
 
         assert_eq!(
-            &Value::Int(expected),
-            res,
+            res, expected,
             "is_even({n}) = {res:?} (expected {expected})",
-        )
+        );
+
+        vm.cleanup();
+
+        assert_eq!(vm.state.heap.bytes_allocated(), 0, "Expected empty heap");
+        assert_eq!(vm.state.heap.objects_allocated(), 0, "Expected empty heap");
     }
 
     #[test]
