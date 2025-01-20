@@ -58,7 +58,7 @@ impl Transform for VOpCode {
 
 #[derive(Debug)]
 pub struct Code {
-    items: VecDeque<VOpCode>,
+    pub items: VecDeque<VOpCode>,
 }
 
 impl Code {
