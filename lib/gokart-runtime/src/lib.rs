@@ -44,6 +44,7 @@ pub struct GcImpl {
 #[no_mangle]
 pub extern "C" fn gokart_allocate(
     m_ptr: *mut rt::gokart_machine,
+    tag: ValueTag,
     size: u64,
     finalizer: ::std::option::Option<unsafe extern "C" fn(arg1: *mut rt::gokart_value)>,
 ) -> *mut rt::gokart_value {
@@ -56,7 +57,7 @@ pub extern "C" fn gokart_allocate(
 
     v.next = gc.inner.head;
     v.size = size;
-    v.header = 0;
+    v.header = (tag as u64) << 8;
     gc.inner.head = ptr;
     gc.layouts.insert(ptr as usize, layout);
 
@@ -65,11 +66,6 @@ pub extern "C" fn gokart_allocate(
 
     if let Some(f) = finalizer {
         gc.finalizers.insert(ptr, f);
-    }
-
-    if gc.inner.objects_allocated >= gc.inner.objects_threshold {
-        gokart_mark_sweep(m_ptr, ptr);
-        // gc.inner.objects_threshold *= 2;
     }
 
     ptr
@@ -115,37 +111,50 @@ pub extern "C" fn gokart_get_vector_int(ptr: *mut rt::gokart_value) -> *mut rpds
     unsafe { &(*(ptr as *mut GValue<rpds::Vector<i64>>)).data as *const rpds::Vector<i64> as *mut rpds::Vector<i64> }
 }
 
+fn gokart_maybe_mark_sweep(m_ptr: *mut rt::gokart_machine, ptr: *mut rt::gokart_value) {
+    let m = unsafe { &mut *m_ptr };
+    let gc = unsafe { &mut *(m.gc as *mut GcImpl) };
+
+    if gc.inner.objects_allocated >= gc.inner.objects_threshold {
+        gokart_mark_sweep(m_ptr, ptr);
+        gc.inner.objects_threshold *= 2;
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn gokart_allocate_vector_int(m: *mut rt::gokart_machine) -> *mut rt::gokart_value {
     let ptr = gokart_allocate(
         m,
+        ValueTag::VectorInt,
         std::mem::size_of::<GValue<std::mem::ManuallyDrop<rpds::Vector<i64>>>>() as u64,
         Some(vector_int_finalizer),
     );
-    gokart_set_tag(ptr, ValueTag::VectorInt as u64);
 
     unsafe { std::ptr::write(gokart_get_vector_int(ptr), rpds::Vector::new()) };
 
+    gokart_maybe_mark_sweep(m, ptr);
 
     ptr
 }
 
 #[no_mangle]
 pub extern "C" fn gokart_allocate_int(m_ptr: *mut rt::gokart_machine, data: i64) -> Ref {
-    let ptr = gokart_allocate(m_ptr, std::mem::size_of::<GValue<i64>>() as u64, None);
+    let ptr = gokart_allocate(m_ptr, ValueTag::IntTag , std::mem::size_of::<GValue<i64>>() as u64, None);
     let vec = unsafe { &mut *(ptr as *mut GValue<i64>) };
     vec.data = data;
-    gokart_set_tag(ptr, ValueTag::IntTag as u64);
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
 
 #[no_mangle]
 pub extern "C" fn gokart_allocate_double(m_ptr: *mut rt::gokart_machine, data: f64) -> Ref {
-    let ptr = gokart_allocate(m_ptr, std::mem::size_of::<GValue<f64>>() as u64, None);
+    let ptr = gokart_allocate(m_ptr, ValueTag::DoubleTag , std::mem::size_of::<GValue<f64>>() as u64, None);
     let vec = unsafe { &mut *(ptr as *mut GValue<f64>) };
     vec.data = data;
-    gokart_set_tag(ptr, ValueTag::DoubleTag as u64);
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
@@ -155,10 +164,11 @@ pub type Tag = u64;
 
 #[no_mangle]
 pub extern "C" fn gokart_allocate_label(m_ptr: *mut rt::gokart_machine, data: Label) -> Ref {
-    let ptr = gokart_allocate(m_ptr, std::mem::size_of::<GValue<Label>>() as u64, None);
+    let ptr = gokart_allocate(m_ptr, ValueTag::Label, std::mem::size_of::<GValue<Label>>() as u64, None);
     let vec = unsafe { &mut *(ptr as *mut GValue<Label>) };
     vec.data = data;
-    gokart_set_tag(ptr, ValueTag::Label as u64);
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
@@ -167,13 +177,15 @@ pub extern "C" fn gokart_allocate_label(m_ptr: *mut rt::gokart_machine, data: La
 pub extern "C" fn gokart_allocate_pair(m_ptr: *mut rt::gokart_machine, lhs: Ref, rhs: Ref) -> Ref {
     let ptr = gokart_allocate(
         m_ptr,
+        ValueTag::Pair,
         std::mem::size_of::<GValue<(Ref, Ref)>>() as u64,
         None,
     );
     let vec = unsafe { &mut *(ptr as *mut GValue<(Ref, Ref)>) };
     vec.data.0 = lhs;
     vec.data.1 = rhs;
-    gokart_set_tag(ptr, ValueTag::Pair as u64);
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
@@ -186,13 +198,15 @@ pub extern "C" fn gokart_allocate_tagged(
 ) -> Ref {
     let ptr = gokart_allocate(
         m_ptr,
+        ValueTag::Tagged,
         std::mem::size_of::<GValue<(Tag, Ref)>>() as u64,
         None,
     );
     let vec = unsafe { &mut *(ptr as *mut GValue<(Tag, Ref)>) };
     vec.data.0 = lhs;
     vec.data.1 = rhs;
-    gokart_set_tag(ptr, ValueTag::Tagged as u64);
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
@@ -205,13 +219,15 @@ pub extern "C" fn gokart_allocate_closure(
 ) -> Ref {
     let ptr = gokart_allocate(
         m_ptr,
+        ValueTag::Closure,
         std::mem::size_of::<GValue<(Ref, Label)>>() as u64,
         None,
     );
     let vec = unsafe { &mut *(ptr as *mut GValue<(Ref, Label)>) };
     vec.data.0 = lhs;
     vec.data.1 = rhs;
-    gokart_set_tag(ptr, ValueTag::Closure as u64);
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
@@ -223,8 +239,8 @@ pub extern "C" fn gokart_allocate_string(
     s_ptr: *mut u8,
 ) -> *mut rt::gokart_value {
     let struct_size = std::mem::size_of::<GValue<u64>>() as u64;
-    let ptr = gokart_allocate(m_ptr, struct_size + size, None);
-    gokart_set_tag(ptr, ValueTag::StrTag as u64);
+    let ptr = gokart_allocate(m_ptr, ValueTag::StrTag, struct_size + size, None);
+
     *gvalue_cast::<u64>(ptr) = size;
 
     unsafe {
@@ -234,6 +250,8 @@ pub extern "C" fn gokart_allocate_string(
             size as usize,
         )
     };
+
+    gokart_maybe_mark_sweep(m_ptr, ptr);
 
     ptr
 }
