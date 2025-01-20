@@ -134,11 +134,8 @@ impl Ops for BinOp {
             }
             IntMul => {
                 let a = *gvalue_cast::<Int>(a_ref);
-                let b= *gvalue_cast::<Int>(b_ref);
-                unsafe { &mut *machine }.env = gokart_runtime::gokart_allocate_int(
-                    machine,
-                    a * b,
-                );
+                let b = *gvalue_cast::<Int>(b_ref);
+                unsafe { &mut *machine }.env = gokart_runtime::gokart_allocate_int(machine, a * b);
             }
             IntMinus => {
                 unsafe { &mut *machine }.env = gokart_runtime::gokart_allocate_int(
@@ -368,6 +365,7 @@ impl Ops for OpCode {
 
                 let r =
                     gokart_runtime::gokart_allocate_label(machine, unsafe { &mut *machine }.ip + 1);
+
                 gokart_runtime::gokart_stack_push(machine, r);
                 unsafe { &mut *machine }.ip = *label;
             }
@@ -401,8 +399,9 @@ impl Ops for OpCode {
             Switch(tag, label) => {
                 let (cur_tag, b) = gvalue_cast::<(Tag, Ref)>(get_env(machine));
                 if *cur_tag == *tag {
-                    let a  = gokart_runtime::gokart_stack_pop(machine);
-                    unsafe { &mut *machine }.env = gokart_runtime::gokart_allocate_pair(machine, a, *b);
+                    let a = gokart_runtime::gokart_stack_pop(machine);
+                    unsafe { &mut *machine }.env =
+                        gokart_runtime::gokart_allocate_pair(machine, a, *b);
                     unsafe { &mut *machine }.ip = *label;
                 } else {
                     unsafe { &mut *machine }.ip += 1;

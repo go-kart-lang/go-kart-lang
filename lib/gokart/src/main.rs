@@ -36,7 +36,7 @@ impl Cli {
 
         let mut vm = VM::new(code, optimizations);
 
-        vm.gc().objects_threshold = 1_000_000;
+        vm.gc().objects_threshold = 100_000;
         vm.gc().bytes_threshold = 8 * 1024 * 1024;
 
         vm.run();
