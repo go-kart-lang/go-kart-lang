@@ -33,7 +33,7 @@ void gokart_set_tag(struct gokart_value* v, uint64_t tag);
 uint8_t gokart_get_color(struct gokart_value* v);
 void gokart_set_color(struct gokart_value* v,  uint8_t color);
 
-struct gokart_value* gokart_allocate(struct gokart_machine* m, uint64_t size, void (*finalizer)(struct gokart_value*));
+struct gokart_value* gokart_allocate(struct gokart_machine* m, uint64_t tag, uint64_t size, void (*finalizer)(struct gokart_value*));
 struct gokart_value* gokart_allocate_vector_int(struct gokart_machine* m);
 struct gokart_value* gokart_allocate_string(struct gokart_machine* m, uint64_t size, uint8_t* ptr);
 struct gokart_value* gokart_allocate_int(struct gokart_machine* m, int64_t data);
