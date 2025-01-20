@@ -159,7 +159,12 @@ impl<'a> Ctx<'a> {
 
     #[inline]
     pub fn unit_ty(&self) -> Type {
-        Type::Prim(*self.tys.get("Unit").unwrap())
+        Type::Prim(self.unit_idx())
+    }
+
+    #[inline]
+    pub fn unit_idx(&self) -> TypeIdx {
+        *self.tys.get("Unit").unwrap()
     }
 
     #[inline]
@@ -303,15 +308,18 @@ impl TypeExt for Type {
     ) -> VerifyRes<(Vec<VarName<'a>>, Vec<Type>)> {
         #[inline]
         fn add_var<'b>(
-            vars: &mut HashSet<VarName<'b>>,
+            vars: &mut Vec<VarName<'b>>,
             tys: &mut Vec<Type>,
             var: &Name<'b>,
             ty: Type,
         ) -> VerifyRes<()> {
             tys.push(ty);
-            match vars.insert(var.val) {
-                true => Ok(()),
-                false => Err(VerifyErr::InvalidPattern(
+            match vars.contains(&var.val) {
+                false => {
+                    vars.push(var.val);
+                    Ok(())
+                }
+                true => Err(VerifyErr::PatternRedefinition(
                     var.loc.into_span(),
                     var.to_string(),
                 )),
@@ -319,7 +327,7 @@ impl TypeExt for Type {
         }
 
         fn go<'b>(
-            vars: &mut HashSet<VarName<'b>>,
+            vars: &mut Vec<VarName<'b>>,
             tys: &mut Vec<Type>,
             ctx: &mut Ctx<'b>,
             ty: Type,
@@ -346,12 +354,12 @@ impl TypeExt for Type {
                     go(vars, tys, ctx, left_ty, &tpl.left)?;
                     go(vars, tys, ctx, right_ty, &tpl.right)
                 }
-                // (_, Tpl::Empty(tpl)) => Ok(()),
                 (ty, Tpl::Pair(tpl)) => Err(VerifyErr::PatternNotMatch(
                     tpl.loc.into_span(),
                     ty.show(ctx),
                     "(_, _)".to_string(),
                 )),
+                (Type::Prim(idx), Tpl::Empty(_)) if idx == ctx.unit_idx() => Ok(()),
                 (ty, Tpl::Empty(tpl)) => Err(VerifyErr::PatternNotMatch(
                     tpl.loc.into_span(),
                     ty.show(ctx),
@@ -360,9 +368,9 @@ impl TypeExt for Type {
             }
         }
 
-        let mut vars = HashSet::new();
+        let mut vars = Vec::new();
         let mut tys = Vec::new();
         go(&mut vars, &mut tys, ctx, self, tpl)?;
-        Ok((Vec::from_iter(vars), tys))
+        Ok((vars, tys))
     }
 }

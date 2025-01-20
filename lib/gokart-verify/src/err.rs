@@ -41,7 +41,7 @@ pub enum VerifyErr {
 
     #[error("Invalid pattern: variable {1} already defined")]
     #[diagnostic()]
-    InvalidPattern(#[label("here")] Span, String),
+    PatternRedefinition(#[label("here")] Span, String),
 
     #[error("Invalid case: different branches have different types of constructors")]
     #[diagnostic()]
