@@ -164,7 +164,7 @@ fn make_labels(ctx: &mut Ctx) -> Vec<Label> {
         let (exp, env) = &ctx.queue[idx];
         idx += 1;
 
-        res.push(ctx.code.len());
+        res.push(ctx.code.len() as u64);
         exp.compile(ctx, env.clone());
         ctx.code.push_back(VOpCode::Return);
     }

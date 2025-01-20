@@ -1,31 +1,42 @@
-use crate::ops::Ops;
-use crate::{state::State, GC};
-use gokart_core::OpCode;
 use crate::jit::Optimization;
+use crate::ops::Ops;
+use gokart_core::OpCode;
 
 pub struct VM {
-    pub state: State,
+    pub inner: *mut gokart_runtime::gokart_machine,
     pub(crate) code: Vec<OpCode>,
-    gc: GC,
     optimizations: Vec<Box<dyn Optimization>>,
 }
 
 impl VM {
-    #[inline]
-    pub fn new(code: Vec<OpCode>, gc: GC, optimizations: Vec<Box<dyn Optimization>>) -> Self {
-        Self::from_state(State::new(), code, gc, optimizations)
+    pub fn new(code: Vec<OpCode>, optimizations: Vec<Box<dyn Optimization>>) -> Self {
+        Self {
+            code,
+            inner: gokart_runtime::gokart_machine_init(),
+            optimizations,
+        }
     }
 
     #[inline]
-    pub fn from_state(state: State, code: Vec<OpCode>, gc: GC, optimizations: Vec<Box<dyn Optimization>>) -> Self {
-        Self { state, code, gc, optimizations }
+    pub fn machine(&self) -> &mut gokart_runtime::gokart_machine {
+        unsafe { &mut *self.inner }
+    }
+
+    #[inline]
+    pub fn gc(&self) -> &mut gokart_runtime::gokart_gc {
+        unsafe { &mut *(self.machine().gc) }
+    }
+
+    #[inline]
+    pub fn ip(&self) -> usize {
+        unsafe { &mut *self.inner }.ip as usize
     }
 
     #[inline]
     pub fn run(&mut self) {
-        while self.state.is_running {
-            // println!("Executing instruction at IP {}: {:?}", self.state.ip, self.code[self.state.ip]);
-
+        let ptr = self.inner;
+        let m = unsafe { &mut *self.inner };
+        while m.is_running == 1 {
             // Check for optimizations
             let mut optimized = false;
 
@@ -35,43 +46,34 @@ impl VM {
 
                     let (optimized_code, skip) = opt.apply(self);
 
-                    let old_ip = self.state.ip;
+                    let old_ip = self.ip();
 
                     // Replace the current instruction with the optimized one
                     for (offset, op) in optimized_code.into_iter().enumerate() {
-                        op.execute(&mut self.state);
-                        self.code[self.state.ip + offset] = op;
+                        op.execute(ptr);
+                        self.code[m.ip as usize + offset] = op;
                     }
 
                     // Move the instruction pointer ahead by the number of optimized instructions
-                    self.state.ip = old_ip + skip;
+                    m.ip = (old_ip + skip) as u64;
                     optimized = true;
                     break;
                 }
             }
 
             if !optimized {
-                self.code[self.state.ip].execute(&mut self.state);
-            }
-
-            // Garbage collection check
-            if self.gc.is_necessary(&self.state) {
-                self.gc.cleanup(&mut self.state);
+                self.code[m.ip as usize].execute(ptr);
             }
         }
     }
 
     pub fn cleanup(&mut self) {
-        self.state.env = std::ptr::null_mut();
-        self.state.stack.clear();
-        self.gc.cleanup(&mut self.state);
+        gokart_runtime::gokart_machine_free(self.inner);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::value::gvalue_cast;
-
     use super::*;
     use gokart_core::{BinOp, GOpCode, Int, NullOp};
     use GOpCode::*;
@@ -93,23 +95,20 @@ mod tests {
             Return,
         ]);
 
-        let mut state = State::new();
-        let num = state.heap.allocate_int(1);
-        state.env = state.heap.allocate_pair(state.env, num);
+        let mut vm = VM::new(code, vec![]);
+        vm.gc().bytes_threshold = 10_000;
+        vm.gc().objects_threshold = 10_000;
 
-        let gc = GC::new(10_000, 10_000);
-        let mut vm = VM::from_state(state, code, gc, vec![]);
+        let num = gokart_runtime::gokart_allocate_int(vm.inner, 1);
+        vm.machine().env = gokart_runtime::gokart_allocate_pair(vm.inner, vm.machine().env, num);
 
         vm.run();
 
-        let result = *gvalue_cast::<Int>(vm.state.env);
+        let result = *gokart_runtime::gvalue_cast::<Int>(vm.machine().env);
 
         assert_eq!(result, 5, "Expected 5");
 
         vm.cleanup();
-
-        assert_eq!(vm.state.heap.bytes_allocated(), 0, "Expected empty heap");
-        assert_eq!(vm.state.heap.objects_allocated(), 0, "Expected empty heap");
     }
 
     fn even_program(n: Int, expected: Int) {
@@ -148,21 +147,18 @@ mod tests {
             Sys2(BinOp::IntMinus),
             Return,
         ]);
-        let gc = GC::new(10_000, 10_000);
-        let mut vm = VM::new(code, gc, vec![]);
+
+        let mut vm = VM::new(code, vec![]);
+        vm.gc().bytes_threshold = 10_000;
+        vm.gc().objects_threshold = 10_000;
 
         vm.run();
-        let res = *gvalue_cast::<Int>(vm.state.env);
+        let res = *gokart_runtime::gvalue_cast::<Int>(unsafe { &mut *vm.inner }.env);
 
         assert_eq!(
             res, expected,
             "is_even({n}) = {res:?} (expected {expected})",
         );
-
-        vm.cleanup();
-
-        assert_eq!(vm.state.heap.bytes_allocated(), 0, "Expected empty heap");
-        assert_eq!(vm.state.heap.objects_allocated(), 0, "Expected empty heap");
     }
 
     #[test]

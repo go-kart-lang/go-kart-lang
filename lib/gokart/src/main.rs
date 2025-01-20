@@ -1,7 +1,7 @@
 use clap::Parser;
 use gokart_core::OpCode;
 use gokart_serde::Deserialize;
-use gokart_vm::{ConstantFolding, DeadCodeElimination, Optimization, TailCallOptimization, GC, VM};
+use gokart_vm::{ConstantFolding, DeadCodeElimination, Optimization, TailCallOptimization, VM};
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 #[derive(Parser)]
@@ -34,7 +34,10 @@ impl Cli {
             Box::new(ConstantFolding),
         ];
 
-        let mut vm = VM::new(code, GC::default(), optimizations);
+        let mut vm = VM::new(code, optimizations);
+
+        vm.gc().objects_threshold = 1_000_000;
+        vm.gc().bytes_threshold = 8 * 1024 * 1024;
 
         vm.run();
         vm.cleanup();
