@@ -1,0 +1,67 @@
+data Tree = Leaf | Node Tree Tree Int
+
+letrec
+	itemCheck = \x -> case x of
+		| Leaf () -> 0;
+		| Node (left, right, item) ->
+            item + (itemCheck left) - (itemCheck right);
+    ;
+	bottomUpTree = \item depth -> if depth > 0
+		then Node (
+			bottomUpTree ((2 * item) - 1) (depth - 1),
+			bottomUpTree (2 * item) (depth - 1),
+			item
+		)
+		else Node (Leaf (), Leaf (), item)
+	;
+in let
+    pow2 = \x ->
+        letrec
+            impl = \x acc -> if x == 0
+                then acc
+                else impl (x - 1) (acc * 2);
+        in impl x 1
+    ;
+in let
+    loop = \f begin end step ->
+        letrec
+            impl = \acc curr end step -> if curr > end
+                then acc
+                else impl (acc + f curr) (curr + step) end step
+            ;
+        in impl 0 begin end step
+    ;
+in let
+    outer = \n ->
+        let
+            minDepth = 4;
+        in let
+            maxDepth = if n > minDepth + 2
+                then n
+                else minDepth + 2;
+        in let
+            stretchDepth = maxDepth + 1;        
+        in let
+            check = itemCheck (bottomUpTree 0 stretchDepth);
+        in let
+            longLivedTree = bottomUpTree 0 maxDepth;
+        in let
+            inner = \depth ->
+                let
+                    innerCheck = \i ->
+                        itemCheck (bottomUpTree i depth) +
+                        itemCheck (bottomUpTree (0 - i) depth)
+                    ;
+                in let
+                    iterations = pow2 ((maxDepth - depth) + minDepth);
+                in loop innerCheck 1 iterations 1
+            ;
+        in let
+            _ = loop inner minDepth maxDepth 2;
+        in itemCheck longLivedTree;
+in let
+    ret = loop outer 4 7 1;
+in (
+    print "Expected -4",
+    print ("Got " ++ i2s ret)
+)
