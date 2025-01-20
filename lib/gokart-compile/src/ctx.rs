@@ -87,7 +87,7 @@ impl Code {
 
     #[inline]
     pub fn cur_label(&self) -> DLabel {
-        DLabel::Label(self.len())
+        DLabel::Label(self.len() as u64)
     }
 
     #[inline]

@@ -1,10 +1,8 @@
 [package]
-name = "gokart-vm"
+name = "gokart-jit"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+inkwell = { version = "0.5.0", features = ["llvm18-0"] }
 gokart-core = { path = "../gokart-core" }
-gokart-runtime = { path = "../gokart-runtime" }
-rpds = "1.1.0"
-rand = "0.8.5"

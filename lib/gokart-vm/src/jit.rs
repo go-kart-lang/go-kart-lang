@@ -11,11 +11,11 @@ pub struct TailCallOptimization;
 
 impl Optimization for TailCallOptimization {
     fn can_apply(&self, vm: &VM) -> bool {
-        let state = &vm.state;
+        let ip = vm.ip();
         let code = &vm.code;
 
         let can_optimize = matches!(
-            (code.get(state.ip), code.get(state.ip + 1)),
+            (code.get(ip), code.get(ip + 1)),
             (Some(OpCode::Call(_)), Some(OpCode::Return))
         );
 
@@ -25,7 +25,7 @@ impl Optimization for TailCallOptimization {
 
     fn apply(&self, vm: &VM) -> (Vec<OpCode>, usize) {
         let code = &vm.code;
-        if let OpCode::Call(label) = code[vm.state.ip] {
+        if let OpCode::Call(label) = code[vm.ip()] {
             // println!("TCO applied: replacing Call({:?}) + Return with Goto({:?})", label, label);
             (vec![OpCode::Goto(label)], 2)
         } else {
@@ -40,13 +40,13 @@ pub struct DeadCodeElimination;
 impl Optimization for DeadCodeElimination {
     fn can_apply(&self, vm: &VM) -> bool {
         matches!(
-            vm.code.get(vm.state.ip),
+            vm.code.get(vm.ip()),
             Some(OpCode::Call(_)) | Some(OpCode::Goto(_)) | Some(OpCode::GotoFalse(_))
         )
     }
 
     fn apply(&self, vm: &VM) -> (Vec<OpCode>, usize) {
-        let ip = vm.state.ip;
+        let ip = vm.ip();
         let code = &vm.code;
 
         let mut reachable = vec![false; code.len()];
@@ -54,26 +54,26 @@ impl Optimization for DeadCodeElimination {
         fn mark_reachable(code: &[OpCode], reachable: &mut [bool], start_ip: usize) {
             let mut stack = vec![start_ip];
             while let Some(ip) = stack.pop() {
-                if ip >= code.len() || reachable[ip] {
+                if ip >= code.len() || reachable[ip as usize] {
                     continue;
                 }
                 reachable[ip] = true;
 
                 match &code[ip] {
                     OpCode::Goto(label) => {
-                        if *label < code.len() {
-                            stack.push(*label);
+                        if *label < code.len() as u64 {
+                            stack.push(*label as usize);
                         }
                     }
                     OpCode::GotoFalse(label) => {
-                        if *label < code.len() {
-                            stack.push(*label);
+                        if *label < code.len()  as u64  {
+                            stack.push(*label as usize);
                         }
                         stack.push(ip + 1);
                     }
                     OpCode::Call(label) => {
-                        if *label < code.len() {
-                            stack.push(*label);
+                        if *label < code.len()  as u64  {
+                            stack.push(*label as usize);
                         }
                         stack.push(ip + 1); // Рекурсивные или другие вызовы должны следовать после
                     }
@@ -109,17 +109,17 @@ pub struct ConstantFolding;
 
 impl Optimization for ConstantFolding {
     fn can_apply(&self, vm: &VM) -> bool {
-        let state = &vm.state;
+        let ip = vm.ip();
         let code = &vm.code;
 
         // Проверяем, если есть последовательность опкодов PUSH, INT_LIT, SWAP, INT_LIT, SYS2
         matches!(
             (
-                code.get(state.ip),
-                code.get(state.ip + 1),
-                code.get(state.ip + 2),
-                code.get(state.ip + 3),
-                code.get(state.ip + 4)
+                code.get(ip),
+                code.get(ip + 1),
+                code.get(ip + 2),
+                code.get(ip + 3),
+                code.get(ip + 4)
             ),
             (
                 Some(OpCode::Push),
@@ -133,7 +133,7 @@ impl Optimization for ConstantFolding {
 
     fn apply(&self, vm: &VM) -> (Vec<OpCode>, usize) {
         let code = &vm.code;
-        let state = &vm.state;
+        let ip = vm.ip();
 
         // Проверяем, если у нас последовательность: PUSH, INT_LIT, SWAP, INT_LIT, SYS2
         if let (
@@ -143,11 +143,11 @@ impl Optimization for ConstantFolding {
             Some(OpCode::Sys0(NullOp::IntLit(right_value))),
             Some(OpCode::Sys2(op)),
         ) = (
-            code.get(state.ip),
-            code.get(state.ip + 1),
-            code.get(state.ip + 2),
-            code.get(state.ip + 3),
-            code.get(state.ip + 4),
+            code.get(ip),
+            code.get(ip + 1),
+            code.get(ip + 2),
+            code.get(ip + 3),
+            code.get(ip + 4),
         ) {
             // Выполняем операцию с константами
             let result = match op {

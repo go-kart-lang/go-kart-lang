@@ -81,7 +81,7 @@ impl<'a> Ctx<'a> {
 
     #[inline]
     pub fn add_tag(&mut self, name: VarName<'a>) -> Option<Tag> {
-        self.tags.insert(name, self.tag_cnt.step())
+        self.tags.insert(name, self.tag_cnt.step() as u64)
     }
 
     #[inline]

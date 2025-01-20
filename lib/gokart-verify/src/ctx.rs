@@ -111,7 +111,7 @@ impl<'a> Ctx<'a> {
                 name.val.to_string(),
             )),
             None => {
-                let idx = self.tag_cnt.step();
+                let idx = self.tag_cnt.step() as u64;
                 self.tags.insert(name.val, idx);
 
                 self.cons
