@@ -33,6 +33,7 @@ do_bench () {
 do_bench "../tasks/task_01.gokart" "20"
 do_bench "../tasks/task_02_rnd.gokart" "10000"
 do_bench "../tasks/task_03_mut.gokart" "10000"
+do_bench "../tasks/task_04.gokart" ""
 
 # cleanup
 
