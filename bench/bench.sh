@@ -24,7 +24,7 @@ do_bench () {
 
   $gkc "$filename" -o $exe > /dev/null
   echo "$n" > $inp
-  time $gk $exe < $inp > /dev/null
+  time $gk $exe < $inp # > /dev/null
   echo ""
 }
 

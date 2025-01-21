@@ -2,17 +2,23 @@ use crate::jit::Optimization;
 use crate::ops::Ops;
 use gokart_core::OpCode;
 
+
+const JIT_THREHSOLD: usize = 100;
+
 pub struct VM {
     pub inner: *mut gokart_runtime::gokart_machine,
     pub(crate) code: Vec<OpCode>,
+    code_counter: Vec<usize>,
     optimizations: Vec<Box<dyn Optimization>>,
 }
 
 impl VM {
     pub fn new(code: Vec<OpCode>, optimizations: Vec<Box<dyn Optimization>>) -> Self {
+        let code_len = code.len();
         Self {
             code,
             inner: gokart_runtime::gokart_machine_init(),
+            code_counter: vec![0; code_len],
             optimizations,
         }
     }
@@ -40,28 +46,31 @@ impl VM {
             // Check for optimizations
             let mut optimized = false;
 
-            for opt in &self.optimizations {
-                if opt.can_apply(self) {
-                    // println!("Applying optimization for: {:?}", self.code[self.state.ip]);
+            if self.code_counter[m.ip as usize] >= JIT_THREHSOLD {
+                for opt in &self.optimizations {
+                    if opt.can_apply(self) {
+                        // println!("Applying optimization for: {:?}", self.code[self.state.ip]);
 
-                    let (optimized_code, skip) = opt.apply(self);
+                        let (optimized_code, skip) = opt.apply(self);
 
-                    let old_ip = self.ip();
+                        let old_ip = self.ip();
 
-                    // Replace the current instruction with the optimized one
-                    for (offset, op) in optimized_code.into_iter().enumerate() {
-                        op.execute(ptr);
-                        self.code[m.ip as usize + offset] = op;
+                        // Replace the current instruction with the optimized one
+                        for (offset, op) in optimized_code.into_iter().enumerate() {
+                            op.execute(ptr);
+                            self.code[m.ip as usize + offset] = op;
+                        }
+
+                        // Move the instruction pointer ahead by the number of optimized instructions
+                        m.ip = (old_ip + skip) as u64;
+                        optimized = true;
+                        break;
                     }
-
-                    // Move the instruction pointer ahead by the number of optimized instructions
-                    m.ip = (old_ip + skip) as u64;
-                    optimized = true;
-                    break;
                 }
             }
 
             if !optimized {
+                self.code_counter[m.ip as usize] += 1;
                 self.code[m.ip as usize].execute(ptr);
             }
         }
