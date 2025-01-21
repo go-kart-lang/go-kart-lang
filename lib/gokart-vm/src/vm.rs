@@ -3,7 +3,7 @@ use crate::ops::Ops;
 use gokart_core::OpCode;
 
 
-const JIT_THREHSOLD: usize = 100;
+const JIT_THREHSOLD: usize = 5_000;
 
 pub struct VM {
     pub inner: *mut gokart_runtime::gokart_machine,
